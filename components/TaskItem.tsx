@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Task } from '../types';
-import { TrashIcon, ChevronDownIcon, GripVerticalIcon, EditIcon, CalendarPlusIcon, RepeatIcon, CalendarIcon } from './icons';
+import { TrashIcon, ChevronDownIcon, GripVerticalIcon, EditIcon, CalendarPlusIcon, RepeatIcon, CalendarIcon, ChevronUpIcon, ChevronDoubleUpIcon, ChevronDoubleDownIcon } from './icons';
 
 interface TaskItemProps {
   task: Task;
@@ -15,9 +15,12 @@ interface TaskItemProps {
   onToggleTaskComplete: (taskId: string) => void;
   allTags: string[];
   isCompactView: boolean;
+  onMoveTask: (taskId: string, direction: 'up' | 'down' | 'top' | 'bottom') => void;
+  taskIndex: number;
+  totalTasks: number;
 }
 
-const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSubtaskModal, onDragStart, onDragOver, onDrop, isDragging, onSetSubtaskDueDate, onToggleTaskComplete, allTags, isCompactView }) => {
+const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSubtaskModal, onDragStart, onDragOver, onDrop, isDragging, onSetSubtaskDueDate, onToggleTaskComplete, allTags, isCompactView, onMoveTask, taskIndex, totalTasks }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editingTitle, setEditingTitle] = useState(task.title);
   const [editingDescription, setEditingDescription] = useState(task.description);
@@ -76,6 +79,8 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
   };
 
   const suggestedTags = allTags.filter(tag => !editingDescription.includes(tag));
+  const isAtTop = taskIndex === 0;
+  const isAtBottom = taskIndex === totalTasks - 1;
 
   if (isCompactView) {
     return (
@@ -163,11 +168,19 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
                 </div>
             )}
          </div>
-        <div className="flex items-center space-x-2 flex-shrink-0 self-end sm:self-start mt-3 sm:mt-0">
-            {!task.completed && (
-              <div className="cursor-grab p-1">
-                  <GripVerticalIcon />
-              </div>
+        <div className="flex items-center flex-wrap justify-end gap-2 flex-shrink-0 self-end sm:self-start mt-3 sm:mt-0">
+            {!task.completed && !isEditing && (
+              <>
+                <div className="cursor-grab p-1">
+                    <GripVerticalIcon />
+                </div>
+                 <div className="flex items-center border border-gray-200 dark:border-gray-700 rounded-md">
+                    <button onClick={() => onMoveTask(task.id, 'top')} disabled={isAtTop} className="p-1.5 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-cyan-500 dark:text-gray-400 dark:hover:text-cyan-400 transition-colors" title="Move to top" aria-label="Move task to top"><ChevronDoubleUpIcon /></button>
+                    <button onClick={() => onMoveTask(task.id, 'up')} disabled={isAtTop} className="p-1.5 border-l border-gray-200 dark:border-gray-700 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-cyan-500 dark:text-gray-400 dark:hover:text-cyan-400 transition-colors" title="Move up" aria-label="Move task up"><ChevronUpIcon /></button>
+                    <button onClick={() => onMoveTask(task.id, 'down')} disabled={isAtBottom} className="p-1.5 border-l border-gray-200 dark:border-gray-700 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-cyan-500 dark:text-gray-400 dark:hover:text-cyan-400 transition-colors" title="Move down" aria-label="Move task down"><ChevronDownIcon /></button>
+                    <button onClick={() => onMoveTask(task.id, 'bottom')} disabled={isAtBottom} className="p-1.5 border-l border-gray-200 dark:border-gray-700 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-cyan-500 dark:text-gray-400 dark:hover:text-cyan-400 transition-colors" title="Move to bottom" aria-label="Move task to bottom"><ChevronDoubleDownIcon /></button>
+                </div>
+              </>
             )}
             {isEditing ? (
                 <div className="flex items-center space-x-2">
@@ -179,7 +192,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
                     </button>
                 </div>
             ) : !task.completed ? (
-                <>
+                <div className="flex items-center">
                     <button
                         onClick={() => setIsEditing(true)}
                         className="text-gray-400 dark:text-gray-500 hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors p-1"
@@ -194,7 +207,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
                     >
                         <TrashIcon />
                     </button>
-                </>
+                </div>
             ) : null}
         </div>
       </div>
@@ -260,7 +273,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
 
       {!task.completed && (
         <button onClick={() => onOpenSubtaskModal(task)} className="mt-4 text-sm text-cyan-600 dark:text-cyan-500 hover:text-cyan-700 dark:hover:text-cyan-400 self-start flex items-center">
-            Manage Sub-tasks ({task.subtasks.length}) <ChevronDownIcon/>
+            Manage Sub-tasks ({task.subtasks.length}) <ChevronDownIcon className="h-5 w-5 ml-1"/>
         </button>
       )}
     </div>
