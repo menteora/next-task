@@ -78,20 +78,23 @@ const SettingsView: React.FC<SettingsViewProps> = ({ currentConfig, onSave }) =>
   };
 
   const sqlInstruction = `
--- 1. Create the table to store tasks data for each user.
--- The user_id is linked to the authenticated user and is the Primary Key.
+-- 1. Create the table to store task revisions for each user.
 CREATE TABLE public.tasks (
-  user_id UUID PRIMARY KEY REFERENCES auth.users(id),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   data JSONB,
-  updated_at TIMESTAMPTZ DEFAULT now()
+  created_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- Optional but recommended: Add an index for faster lookups of the latest revision.
+CREATE INDEX ON public.tasks (user_id, created_at DESC);
 
 -- 2. Enable Row Level Security (RLS) on the table.
 -- This is crucial for data privacy.
 ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
 
--- 3. Create a policy that allows users to manage their own tasks.
--- A user can only see, create, update, or delete their own row.
+-- 3. Create a policy that allows users to manage their own task revisions.
+-- A user can only see, create, update, or delete their own revisions.
 CREATE POLICY "Allow users to manage their own tasks"
 ON public.tasks
 FOR ALL
@@ -101,11 +104,6 @@ WITH CHECK (auth.uid() = user_id);
 -- 4. Create a user account in your Supabase project.
 -- Go to Authentication -> Users and click "Add user".
 -- Use the email and password from that account in this app's settings.
-
--- NOTE: After running these commands, Supabase may need a moment
--- to update its API schema. If you see an error about a missing
--- 'user_id' column, wait a minute and try again, or refresh the
--- schema cache manually in your Supabase dashboard under API -> Schema Cache.
   `.trim();
 
   return (
@@ -187,7 +185,7 @@ WITH CHECK (auth.uid() = user_id);
         <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Table Setup</h2>
         <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md">
           <p className="text-gray-600 dark:text-gray-300 mb-4">
-            In your Supabase project, go to the SQL Editor and run the following command to create the necessary table. This app uses a separate row for each authenticated user.
+            In your Supabase project, go to the SQL Editor and run the following commands to set up revision history.
           </p>
           <pre className="bg-gray-100 dark:bg-gray-900/50 p-4 rounded-md text-sm text-gray-800 dark:text-gray-200 overflow-x-auto">
             <code>
