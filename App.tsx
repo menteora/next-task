@@ -231,7 +231,7 @@ const App: React.FC = () => {
         recurring: isNewTaskRecurring,
         completed: false,
       };
-      setTasks(prevTasks => [...prevTasks, newTask]);
+      setTasks(prevTasks => [newTask, ...prevTasks]);
       setNewTaskTitle('');
       setNewTaskDescription('');
       setIsNewTaskRecurring(false);
@@ -332,6 +332,43 @@ const App: React.FC = () => {
         });
     });
   }, []);
+  
+  const handleMoveTask = useCallback((taskId: string, direction: 'up' | 'down' | 'top' | 'bottom') => {
+    setTasks(currentTasks => {
+        const taskToMove = currentTasks.find(t => t.id === taskId);
+        if (!taskToMove) return currentTasks;
+
+        if (direction === 'top') {
+            return [taskToMove, ...currentTasks.filter(t => t.id !== taskId)];
+        }
+        if (direction === 'bottom') {
+            return [...currentTasks.filter(t => t.id !== taskId), taskToMove];
+        }
+
+        const taskIndexInFiltered = filteredTasks.findIndex(t => t.id === taskId);
+        if (taskIndexInFiltered === -1) return currentTasks;
+
+        let targetTask: Task | undefined;
+        if (direction === 'up' && taskIndexInFiltered > 0) {
+            targetTask = filteredTasks[taskIndexInFiltered - 1];
+        } else if (direction === 'down' && taskIndexInFiltered < filteredTasks.length - 1) {
+            targetTask = filteredTasks[taskIndexInFiltered + 1];
+        }
+
+        if (!targetTask) return currentTasks;
+
+        const fromIndex = currentTasks.findIndex(t => t.id === taskId);
+        const toIndex = currentTasks.findIndex(t => t.id === targetTask!.id);
+
+        if (fromIndex === -1 || toIndex === -1) return currentTasks;
+
+        const newTasks = [...currentTasks];
+        // Swap elements for 'up' and 'down' to respect filtered view
+        [newTasks[fromIndex], newTasks[toIndex]] = [newTasks[toIndex], newTasks[fromIndex]];
+        
+        return newTasks;
+    });
+}, [filteredTasks]);
 
 
   const handleOpenSubtaskModal = useCallback((task: Task) => {
@@ -746,7 +783,7 @@ const App: React.FC = () => {
           <div className="task-list">
              {view === 'backlog' && (
                 <>
-                    {filteredTasks.map(task => (
+                    {filteredTasks.map((task, index) => (
                         <TaskItem
                             key={task.id}
                             task={task}
@@ -761,6 +798,9 @@ const App: React.FC = () => {
                             onToggleTaskComplete={handleToggleTaskComplete}
                             allTags={allTags}
                             isCompactView={isCompactView}
+                            onMoveTask={handleMoveTask}
+                            taskIndex={index}
+                            totalTasks={filteredTasks.length}
                         />
                     ))}
                     {tasks.length > 0 && filteredTasks.length === 0 && (
