@@ -105,63 +105,65 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
       onDragStart={(e) => onDragStart(e, task)}
       onDragOver={onDragOver}
       onDrop={(e) => onDrop(e, task)}
-      className={`bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md mb-4 flex flex-col transition-all ${isDragging ? 'opacity-50' : 'opacity-100'} ${task.completed ? 'opacity-60' : ''}`}
+      className={`bg-white dark:bg-gray-800 p-3 sm:p-4 rounded-lg shadow-md mb-3 sm:mb-4 flex flex-col transition-all ${isDragging ? 'opacity-50' : 'opacity-100'} ${task.completed ? 'opacity-60' : ''}`}
     >
-      <div className="flex justify-between items-start">
-         {isEditing ? (
-          <div className="flex-grow mr-4">
-            <input
-              autoFocus
-              type="text"
-              value={editingTitle}
-              onChange={(e) => setEditingTitle(e.target.value)}
-              className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white font-bold text-lg rounded-md px-2 py-1 mb-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-            />
-            <textarea
-              value={editingDescription}
-              onChange={(e) => setEditingDescription(e.target.value)}
-              placeholder="Description... use #tag to add tags"
-              rows={3}
-              className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white text-sm rounded-md px-2 py-1 mb-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-            />
-            {suggestedTags.length > 0 && (
-              <div className="mt-2">
-                <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Suggested tags:</h4>
-                <div className="flex flex-wrap gap-1">
-                  {suggestedTags.map(tag => (
-                    <button 
-                      key={tag} 
-                      onClick={() => handleAddTag(tag)}
-                      className="px-2 py-0.5 text-xs rounded-full bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 transition-colors"
-                    >
-                      {tag}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-             <label className="flex items-center mt-3 text-sm text-gray-500 dark:text-gray-400">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-start">
+         <div className="flex-grow w-full sm:mr-4">
+            {isEditing ? (
+            <div>
                 <input
-                    type="checkbox"
-                    checked={isRecurring}
-                    onChange={e => setIsRecurring(e.target.checked)}
-                    className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-gray-200 dark:bg-gray-700 text-teal-600 dark:text-teal-500 focus:ring-teal-500 dark:focus:ring-teal-600 cursor-pointer"
+                autoFocus
+                type="text"
+                value={editingTitle}
+                onChange={(e) => setEditingTitle(e.target.value)}
+                className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white font-bold text-lg rounded-md px-2 py-1 mb-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
                 />
-                <span className="ml-2">Recurring Task</span>
-            </label>
-          </div>
-        ) : (
-            <div className="flex-grow mr-4">
-                 <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                    <h3 className={`font-bold text-lg text-cyan-600 dark:text-cyan-400 ${task.completed ? 'line-through' : ''}`}>{task.title}</h3>
-                    {task.recurring && !task.completed && <RepeatIcon />}
+                <textarea
+                value={editingDescription}
+                onChange={(e) => setEditingDescription(e.target.value)}
+                placeholder="Description... use #tag to add tags"
+                rows={3}
+                className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white text-sm rounded-md px-2 py-1 mb-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                />
+                {suggestedTags.length > 0 && (
+                <div className="mt-2">
+                    <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Suggested tags:</h4>
+                    <div className="flex flex-wrap gap-1">
+                    {suggestedTags.map(tag => (
+                        <button 
+                        key={tag} 
+                        onClick={() => handleAddTag(tag)}
+                        className="px-2 py-0.5 text-xs rounded-full bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 transition-colors"
+                        >
+                        {tag}
+                        </button>
+                    ))}
+                    </div>
                 </div>
-                <p className="text-gray-500 dark:text-gray-400 mt-1 whitespace-pre-wrap">
-                    {renderDescriptionWithTags(task.description)}
-                </p>
+                )}
+                <label className="flex items-center mt-3 text-sm text-gray-500 dark:text-gray-400">
+                    <input
+                        type="checkbox"
+                        checked={isRecurring}
+                        onChange={e => setIsRecurring(e.target.checked)}
+                        className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-gray-200 dark:bg-gray-700 text-teal-600 dark:text-teal-500 focus:ring-teal-500 dark:focus:ring-teal-600 cursor-pointer"
+                    />
+                    <span className="ml-2">Recurring Task</span>
+                </label>
             </div>
-        )}
-        <div className="flex items-center space-x-2 flex-shrink-0">
+            ) : (
+                <div>
+                    <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                        <h3 className={`font-bold text-lg text-cyan-600 dark:text-cyan-400 ${task.completed ? 'line-through' : ''}`}>{task.title}</h3>
+                        {task.recurring && !task.completed && <RepeatIcon />}
+                    </div>
+                    <p className="text-gray-500 dark:text-gray-400 mt-1 whitespace-pre-wrap text-sm sm:text-base">
+                        {renderDescriptionWithTags(task.description)}
+                    </p>
+                </div>
+            )}
+         </div>
+        <div className="flex items-center space-x-2 flex-shrink-0 self-end sm:self-start mt-3 sm:mt-0">
             {!task.completed && (
               <div className="cursor-grab p-1">
                   <GripVerticalIcon />
@@ -180,14 +182,14 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
                 <>
                     <button
                         onClick={() => setIsEditing(true)}
-                        className="text-gray-400 dark:text-gray-500 hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors"
+                        className="text-gray-400 dark:text-gray-500 hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors p-1"
                         aria-label={`Edit task ${task.title}`}
                     >
                         <EditIcon />
                     </button>
                     <button
                         onClick={() => onDelete(task.id)}
-                        className="text-gray-400 dark:text-gray-500 hover:text-red-500 transition-colors"
+                        className="text-gray-400 dark:text-gray-500 hover:text-red-500 transition-colors p-1"
                         aria-label={`Delete task ${task.title}`}
                     >
                         <TrashIcon />
@@ -199,17 +201,17 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
       
       <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
         {task.completed && task.completionDate ? (
-          <div className="flex justify-between items-center">
-            <p className="text-green-600 dark:text-green-500 font-semibold">Completed on: {new Date(task.completionDate).toLocaleDateString()}</p>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+            <p className="text-green-600 dark:text-green-500 font-semibold mb-2 sm:mb-0">Completed on: {new Date(task.completionDate).toLocaleDateString()}</p>
             <button
               onClick={() => onToggleTaskComplete(task.id)}
-              className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-1 px-3 rounded-md text-sm transition-colors"
+              className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-1 px-3 rounded-md text-sm transition-colors self-end sm:self-center"
             >
               Re-open Task
             </button>
           </div>
         ) : nextAction ? (
-          <div className="flex items-center justify-between group">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between group">
             <div className="flex items-center">
               <input 
                 type="checkbox"
@@ -226,7 +228,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
                   </span>
               )}
             </div>
-             <div className="flex items-center space-x-2">
+             <div className="flex items-center space-x-2 self-end mt-2 sm:mt-0 sm:self-center">
                 <button
                     onClick={() => onSetSubtaskDueDate(nextAction.id, task.id, getTodayDateString())}
                     className="text-gray-400 dark:text-gray-500 hover:text-yellow-500 dark:hover:text-yellow-400 transition-colors opacity-0 group-hover:opacity-100"

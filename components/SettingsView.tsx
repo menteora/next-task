@@ -112,7 +112,7 @@ WITH CHECK (auth.uid() = user_id);
     <div className="space-y-8 animate-fade-in-down">
       <div>
         <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Supabase Settings</h2>
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md space-y-4">
+        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md space-y-4">
           <div>
             <label htmlFor="supabaseUrl" className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">
               Supabase Project URL
@@ -159,7 +159,7 @@ WITH CHECK (auth.uid() = user_id);
           >
             Save Configuration
           </button>
-          <div className="flex gap-2 pt-2">
+          <div className="flex flex-col sm:flex-row gap-2 pt-2">
             <button
                 onClick={handleImportClick}
                 className="w-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold py-2 px-4 rounded-md transition-colors"
@@ -185,7 +185,7 @@ WITH CHECK (auth.uid() = user_id);
 
       <div>
         <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Table Setup</h2>
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md">
           <p className="text-gray-600 dark:text-gray-300 mb-4">
             In your Supabase project, go to the SQL Editor and run the following command to create the necessary table. This app uses a separate row for each authenticated user.
           </p>
