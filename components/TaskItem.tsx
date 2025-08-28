@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Task } from '../types';
-import { TrashIcon, ChevronDownIcon, GripVerticalIcon, EditIcon, CalendarPlusIcon, RepeatIcon, CalendarIcon, ChevronUpIcon, ChevronDoubleUpIcon, ChevronDoubleDownIcon } from './icons';
+import { TrashIcon, ChevronDownIcon, GripVerticalIcon, EditIcon, CalendarPlusIcon, RepeatIcon, CalendarIcon, ChevronUpIcon, ChevronDoubleUpIcon, ChevronDoubleDownIcon, ClockIcon } from './icons';
 
 interface TaskItemProps {
   task: Task;
@@ -25,6 +25,28 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
   const [editingTitle, setEditingTitle] = useState(task.title);
   const [editingDescription, setEditingDescription] = useState(task.description);
   const [isRecurring, setIsRecurring] = useState(task.recurring ?? false);
+
+  const lastTouchedDaysAgo = useMemo(() => {
+    const completedSubtasks = task.subtasks.filter(st => st.completed && st.completionDate);
+    if (completedSubtasks.length === 0) {
+      return null;
+    }
+
+    const lastCompletionDate = new Date(
+      Math.max(
+        ...completedSubtasks.map(st => new Date(st.completionDate!).getTime())
+      )
+    );
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    lastCompletionDate.setHours(0, 0, 0, 0);
+    
+    const diffTime = today.getTime() - lastCompletionDate.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    return diffDays;
+  }, [task.subtasks]);
 
   const getTodayDateString = () => new Date().toISOString().split('T')[0];
 
@@ -158,9 +180,15 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
             </div>
             ) : (
                 <div>
-                    <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                    <div className="flex items-center flex-wrap gap-2 text-gray-700 dark:text-gray-300">
                         <h3 className={`font-bold text-lg text-cyan-600 dark:text-cyan-400 ${task.completed ? 'line-through' : ''}`}>{task.title}</h3>
                         {task.recurring && !task.completed && <RepeatIcon />}
+                        {lastTouchedDaysAgo !== null && !task.completed && (
+                            <span className="flex items-center text-xs text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded-full font-medium whitespace-nowrap">
+                                <ClockIcon className="h-4 w-4 mr-1" />
+                                {lastTouchedDaysAgo === 0 ? 'Oggi' : `${lastTouchedDaysAgo}g fa`}
+                            </span>
+                        )}
                     </div>
                     <p className="text-gray-500 dark:text-gray-400 mt-1 whitespace-pre-wrap text-sm sm:text-base">
                         {renderDescriptionWithTags(task.description)}
