@@ -526,15 +526,15 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen font-sans">
-      <div className="container mx-auto max-w-2xl px-4 py-8">
-        <header className="flex justify-between items-center mb-8">
-          <div className="flex-grow">
-            <h1 className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-teal-600 dark:from-cyan-400 dark:to-teal-500">
+      <div className="container mx-auto max-w-3xl px-2 py-4 sm:px-4 sm:py-8">
+        <header className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 sm:mb-8">
+          <div className="w-full">
+            <h1 className="text-4xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-teal-600 dark:from-cyan-400 dark:to-teal-500">
               Backlog
             </h1>
-            <p className="text-gray-500 dark:text-gray-400 mt-2">Organize your work, focus on the next action.</p>
+            <p className="text-gray-500 dark:text-gray-400 mt-2 text-sm sm:text-base">Organize your work, focus on the next action.</p>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1 sm:space-x-2 self-end sm:self-center mt-4 sm:mt-0 flex-shrink-0">
             {supabaseConfig?.url && (
               <>
                 {supabaseSession && (
@@ -606,7 +606,7 @@ const App: React.FC = () => {
             </div>
         )}
 
-        <div className="flex justify-center mb-8 bg-gray-200 dark:bg-gray-800 rounded-lg p-1">
+        <div className="flex justify-center mb-6 sm:mb-8 bg-gray-200 dark:bg-gray-800 rounded-lg p-1">
             <button
                 onClick={() => setView('backlog')}
                 className={`w-1/4 py-2 px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'backlog' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
@@ -639,9 +639,9 @@ const App: React.FC = () => {
 
         <main>
           {view === 'backlog' && (
-            <div className="flex justify-between items-center mb-6">
-                {allTags.length > 0 ? (
-                    <div className="p-4 bg-white dark:bg-gray-800 rounded-lg flex-grow">
+            <div className="flex flex-col sm:flex-row justify-between items-start mb-6 gap-4">
+                {allTags.length > 0 && (
+                    <div className="p-3 sm:p-4 bg-white dark:bg-gray-800 rounded-lg flex-grow w-full">
                         <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-3">Filter by tags:</h3>
                         <div className="flex flex-wrap gap-2">
                             {allTags.map(tag => (
@@ -664,12 +664,12 @@ const App: React.FC = () => {
                             </button>
                         )}
                     </div>
-                ) : <div className="flex-grow"></div>}
+                )}
                 
                 {tasks.length > 0 && (
                     <button 
                         onClick={() => setIsCompactView(!isCompactView)} 
-                        className="ml-4 p-2 rounded-md bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
+                        className="p-2 rounded-md bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors self-end sm:self-center"
                         aria-label={isCompactView ? "Expand view" : "Compact view"}
                         title={isCompactView ? "Expand view" : "Compact view"}
                     >
@@ -681,9 +681,9 @@ const App: React.FC = () => {
 
 
           {view === 'backlog' && (
-            <div className="mb-8">
+            <div className="mb-6 sm:mb-8">
                 {isFormVisible ? (
-                <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg animate-fade-in-down">
+                <div className="bg-white dark:bg-gray-800 p-3 sm:p-4 rounded-lg shadow-lg animate-fade-in-down">
                     <input
                     type="text"
                     value={newTaskTitle}
@@ -735,7 +735,7 @@ const App: React.FC = () => {
                     </div>
                 </div>
                 ) : (
-                <button onClick={() => setIsFormVisible(true)} className="w-full flex items-center justify-center bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/80 border-2 border-dashed border-gray-300 dark:border-gray-700 hover:border-cyan-500 text-gray-500 dark:text-gray-400 hover:text-cyan-500 font-bold py-3 px-4 rounded-lg transition-all duration-300">
+                <button onClick={() => setIsFormVisible(true)} className="w-full flex items-center justify-center bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/80 border-2 border-dashed border-gray-300 dark:border-gray-700 hover:border-cyan-500 text-gray-500 dark:text-gray-400 hover:text-cyan-500 font-bold py-2 sm:py-3 px-4 rounded-lg transition-all duration-300">
                     <PlusIcon />
                     <span className="ml-2">Add New Task</span>
                 </button>
@@ -765,13 +765,13 @@ const App: React.FC = () => {
                     ))}
                     {tasks.length > 0 && filteredTasks.length === 0 && (
                         <div className="text-center py-10 px-4">
-                            <h2 className="text-2xl font-semibold text-gray-400 dark:text-gray-500">No tasks match the selected filters.</h2>
+                            <h2 className="text-xl sm:text-2xl font-semibold text-gray-400 dark:text-gray-500">No tasks match the selected filters.</h2>
                             <p className="text-gray-500 dark:text-gray-600 mt-2">Try adjusting or clearing your filters.</p>
                         </div>
                     )}
                     {tasks.length === 0 && (
                         <div className="text-center py-10 px-4">
-                            <h2 className="text-2xl font-semibold text-gray-400 dark:text-gray-500">Your backlog is empty.</h2>
+                            <h2 className="text-xl sm:text-2xl font-semibold text-gray-400 dark:text-gray-500">Your backlog is empty.</h2>
                             <p className="text-gray-500 dark:text-gray-600 mt-2">Add a new task to get started!</p>
                         </div>
                     )}
@@ -795,7 +795,7 @@ const App: React.FC = () => {
                         ))
                     ) : (
                         <div className="text-center py-10 px-4">
-                            <h2 className="text-2xl font-semibold text-gray-400 dark:text-gray-500">Nothing scheduled for today.</h2>
+                            <h2 className="text-xl sm:text-2xl font-semibold text-gray-400 dark:text-gray-500">Nothing scheduled for today.</h2>
                             <p className="text-gray-500 dark:text-gray-600 mt-2">Go to the backlog and assign a due date to your sub-tasks.</p>
                         </div>
                     )}
@@ -811,7 +811,7 @@ const App: React.FC = () => {
       
       {isPasswordModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex justify-center items-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-sm p-6 m-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-sm p-4 m-2 sm:p-6 sm:m-4">
             <h3 className="text-lg font-bold mb-4">Enter Supabase Password</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
               To {supabaseAction} your data, please enter the password for <span className="font-semibold">{supabaseConfig?.email}</span>.

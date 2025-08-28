@@ -23,10 +23,10 @@ const TodaySubtaskItem: React.FC<TodaySubtaskItemProps> = ({ item, onToggleCompl
         onDragStart={onDragStart}
         onDragOver={onDragOver}
         onDrop={onDrop}
-        className={`bg-white dark:bg-gray-800 p-3 rounded-lg shadow-md mb-3 flex items-center justify-between transition-opacity ${isDragging ? 'opacity-50' : 'opacity-100'}`}
+        className={`bg-white dark:bg-gray-800 p-2 sm:p-3 rounded-lg shadow-md mb-3 flex items-center justify-between transition-opacity ${isDragging ? 'opacity-50' : 'opacity-100'}`}
     >
-      <div className="flex items-center flex-grow">
-        <div className="cursor-grab p-1 mr-2">
+      <div className="flex items-center flex-grow min-w-0">
+        <div className="cursor-grab p-1 mr-1 sm:mr-2">
           <GripVerticalIcon />
         </div>
         <input
@@ -36,8 +36,8 @@ const TodaySubtaskItem: React.FC<TodaySubtaskItemProps> = ({ item, onToggleCompl
           checked={subtask.completed}
           onChange={onToggleComplete}
         />
-        <div className="ml-3">
-            <label htmlFor={`today-subtask-${subtask.id}`} className={`text-gray-700 dark:text-gray-200 cursor-pointer ${subtask.completed ? 'line-through text-gray-500 dark:text-gray-500' : ''}`}>
+        <div className="ml-3 min-w-0">
+            <label htmlFor={`today-subtask-${subtask.id}`} className={`text-gray-700 dark:text-gray-200 cursor-pointer break-words ${subtask.completed ? 'line-through text-gray-500 dark:text-gray-500' : ''}`}>
                 {subtask.text}
             </label>
              {subtask.completed && subtask.completionDate && (
@@ -45,12 +45,12 @@ const TodaySubtaskItem: React.FC<TodaySubtaskItemProps> = ({ item, onToggleCompl
                     (Completed: {new Date(subtask.completionDate).toLocaleDateString()})
                 </span>
             )}
-            <p className="text-xs text-cyan-600 dark:text-cyan-500 mt-0.5">{parentTaskTitle}</p>
+            <p className="text-xs text-cyan-600 dark:text-cyan-500 mt-0.5 truncate">{parentTaskTitle}</p>
         </div>
       </div>
       <button
         onClick={onRemove}
-        className="text-gray-400 dark:text-gray-500 hover:text-red-500 transition-colors ml-2"
+        className="text-gray-400 dark:text-gray-500 hover:text-red-500 transition-colors ml-2 p-1 flex-shrink-0"
         aria-label={`Remove subtask ${subtask.text} from today`}
       >
         <TrashIcon />

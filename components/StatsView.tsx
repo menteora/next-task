@@ -6,9 +6,9 @@ interface StatsViewProps {
 }
 
 const StatsCard = ({ title, value, colorClass = 'text-cyan-500 dark:text-cyan-400' }: { title: string, value: number | string, colorClass?: string }) => (
-  <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md flex flex-col items-center justify-center">
-    <span className={`text-4xl font-bold ${colorClass}`}>{value}</span>
-    <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mt-2">{title}</p>
+  <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md flex flex-col items-center justify-center">
+    <span className={`text-3xl sm:text-4xl font-bold ${colorClass}`}>{value}</span>
+    <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mt-2 text-center">{title}</p>
   </div>
 );
 
@@ -83,8 +83,8 @@ const StatsView: React.FC<StatsViewProps> = ({ tasks }) => {
 
       <div>
         <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Weekly Activity</h2>
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-            <div className="flex justify-between items-end h-48 space-x-2">
+        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md">
+            <div className="flex justify-between items-end h-48 space-x-1 sm:space-x-2">
                 {Object.entries(stats.weeklyCompletion).map(([date, count]) => {
                     const day = new Date(date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short' });
                     const height = (count / maxWeeklyCompletion) * 100;
@@ -107,7 +107,7 @@ const StatsView: React.FC<StatsViewProps> = ({ tasks }) => {
       
       <div>
         <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Top Tags</h2>
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md">
             {stats.topTags.length > 0 ? (
                 <ul className="space-y-3">
                     {stats.topTags.map(([tag, count]) => (

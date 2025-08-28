@@ -106,9 +106,9 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 flex justify-center items-center z-50" onClick={onClose}>
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl p-6 m-4" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-2xl font-bold mb-2 text-cyan-600 dark:text-cyan-400">Sub-tasks for: <span className="text-gray-800 dark:text-white">{task.title}</span></h2>
-        <p className="text-gray-500 dark:text-gray-400 mb-6">Drag to reorder. Assign a date to see it in the 'Today' view.</p>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-4 m-2 sm:p-6 sm:m-4 md:max-w-2xl" onClick={(e) => e.stopPropagation()}>
+        <h2 className="text-xl sm:text-2xl font-bold mb-2 text-cyan-600 dark:text-cyan-400">Sub-tasks for: <span className="text-gray-800 dark:text-white">{task.title}</span></h2>
+        <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mb-6">Drag to reorder. Assign a date to see it in the 'Today' view.</p>
         
         <div className="space-y-2 mb-6 max-h-72 overflow-y-auto pr-2">
           {task.subtasks.length > 0 ? (
@@ -120,7 +120,7 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
                         onDragOver={onDragOver}
                         onDrop={(e) => onDrop(e, subtask)}
                         onDragEnd={onDragEnd}
-                        className={`flex items-center justify-between p-3 rounded-md transition-all ${draggedSubtask?.id === subtask.id ? 'bg-cyan-100 dark:bg-cyan-900/50' : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600/80'}`}
+                        className={`flex flex-col sm:flex-row items-stretch sm:items-center justify-between p-2 sm:p-3 rounded-md transition-all ${draggedSubtask?.id === subtask.id ? 'bg-cyan-100 dark:bg-cyan-900/50' : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600/80'}`}
                         >
                         <div className="flex items-center flex-grow">
                             <div className="cursor-grab p-1 mr-2">
@@ -159,7 +159,7 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
                             )}
                         </div>
                         {editingSubtaskId !== subtask.id && (
-                           <div className="flex items-center ml-4 space-x-2">
+                           <div className="flex items-center justify-end flex-wrap gap-2 mt-2 sm:mt-0 sm:ml-4">
                                 <input
                                   type="date"
                                   value={subtask.dueDate || ''}
