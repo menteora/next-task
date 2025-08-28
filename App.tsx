@@ -4,11 +4,27 @@ import TaskItem from './components/TaskItem';
 import SubtaskModal from './components/SubtaskModal';
 import TodaySubtaskItem from './components/TodaySubtaskItem';
 import StatsView from './components/StatsView';
-import { PlusIcon, SunIcon, MoonIcon, ListIcon, CalendarIcon, BarChartIcon, ArrowsPointingInIcon, ArrowsPointingOutIcon, DownloadIcon, UploadIcon } from './components/icons';
+import SettingsView from './components/SettingsView';
+import { createSupabaseClient } from './supabaseClient';
+import { PlusIcon, SunIcon, MoonIcon, ListIcon, CalendarIcon, BarChartIcon, ArrowsPointingInIcon, ArrowsPointingOutIcon, DownloadIcon, UploadIcon, SettingsIcon, CloudUploadIcon, CloudDownloadIcon, SpinnerIcon, LogOutIcon } from './components/icons';
+import { Session } from '@supabase/supabase-js';
 
 type TodayItem = { subtask: Subtask, parentTask: Task };
 type Theme = 'light' | 'dark';
-type View = 'backlog' | 'today' | 'stats';
+type View = 'backlog' | 'today' | 'stats' | 'settings';
+type SupabaseAction = 'import' | 'export';
+
+interface SupabaseConfig {
+  url: string;
+  anonKey: string;
+  email: string;
+}
+
+interface StatusMessage {
+  type: 'success' | 'error';
+  text: string;
+}
+
 
 const App: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>(() => {
@@ -62,6 +78,11 @@ const App: React.FC = () => {
     return 'light';
   });
 
+  const [supabaseConfig, setSupabaseConfig] = useState<SupabaseConfig | null>(() => {
+    const savedConfig = localStorage.getItem('supabaseConfig');
+    return savedConfig ? JSON.parse(savedConfig) : null;
+  });
+
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDescription, setNewTaskDescription] = useState('');
   const [isNewTaskRecurring, setIsNewTaskRecurring] = useState(false);
@@ -76,6 +97,15 @@ const App: React.FC = () => {
   });
   const [isCompactView, setIsCompactView] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Supabase state
+  const [supabaseSession, setSupabaseSession] = useState<Session | null>(null);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [password, setPassword] = useState('');
+  const [supabaseAction, setSupabaseAction] = useState<SupabaseAction | null>(null);
+  const [isSupabaseLoading, setIsSupabaseLoading] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<StatusMessage | null>(null);
+
 
   useEffect(() => {
     localStorage.setItem('backlogTasks', JSON.stringify(tasks));
@@ -101,6 +131,28 @@ const App: React.FC = () => {
     }
     localStorage.setItem('theme', theme);
   }, [theme]);
+  
+   useEffect(() => {
+    if (supabaseConfig) {
+      const supabase = createSupabaseClient(supabaseConfig.url, supabaseConfig.anonKey);
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        setSupabaseSession(session);
+      });
+
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        setSupabaseSession(session);
+      });
+
+      return () => subscription.unsubscribe();
+    }
+  }, [supabaseConfig]);
+
+  const handleSaveSupabaseConfig = (config: SupabaseConfig) => {
+    setSupabaseConfig(config);
+    localStorage.setItem('supabaseConfig', JSON.stringify(config));
+    setStatusMessage({ type: 'success', text: 'Supabase settings saved!' });
+    setTimeout(() => setStatusMessage(null), 3000);
+  };
 
   const getTodayDateString = () => new Date().toISOString().split('T')[0];
 
@@ -393,6 +445,85 @@ const App: React.FC = () => {
     reader.readAsText(file);
   };
   
+  const executeSupabaseAction = async (action: SupabaseAction, session: Session) => {
+      if (!supabaseConfig) return;
+
+      setIsSupabaseLoading(true);
+      setStatusMessage(null);
+      const supabase = createSupabaseClient(supabaseConfig.url, supabaseConfig.anonKey);
+      
+      if (action === 'export') {
+        const { error } = await supabase
+          .from('tasks')
+          .upsert({ user_id: session.user.id, data: tasks }, { onConflict: 'user_id' });
+        if (error) {
+            setStatusMessage({ type: 'error', text: `Export failed: ${error.message}` });
+        } else {
+            setStatusMessage({ type: 'success', text: "Tasks successfully exported!" });
+        }
+      } else if (action === 'import') {
+        const { data, error } = await supabase.from('tasks').select('data').eq('user_id', session.user.id).single();
+        if (error || !data) {
+            setStatusMessage({ type: 'error', text: `Import failed: ${error?.message || 'No data found.'}` });
+        } else if (data) {
+            setTasks(data.data || []);
+            setTodayOrder([]);
+            setStatusMessage({ type: 'success', text: "Tasks successfully imported!" });
+        }
+      }
+      
+      setIsSupabaseLoading(false);
+      setSupabaseAction(null);
+      setTimeout(() => setStatusMessage(null), 5000);
+  };
+  
+  const handlePasswordConfirm = async () => {
+    if (!supabaseConfig || !supabaseAction) return;
+
+    setIsSupabaseLoading(true);
+    setStatusMessage(null);
+
+    const supabase = createSupabaseClient(supabaseConfig.url, supabaseConfig.anonKey);
+    const { data, error } = await supabase.auth.signInWithPassword({
+        email: supabaseConfig.email,
+        password: password,
+    });
+
+    if (error) {
+        setStatusMessage({ type: 'error', text: error.message });
+        setIsSupabaseLoading(false);
+        setPassword('');
+    } else if (data.session) {
+        setIsPasswordModalOpen(false);
+        setPassword('');
+        await executeSupabaseAction(supabaseAction, data.session);
+    }
+  };
+
+  const triggerSupabaseAction = async (action: SupabaseAction) => {
+      if (!supabaseConfig) return;
+
+      setSupabaseAction(action);
+      
+      if (supabaseSession) {
+          await executeSupabaseAction(action, supabaseSession);
+      } else {
+          setIsPasswordModalOpen(true);
+      }
+  };
+  
+  const handleLogout = async () => {
+    if (!supabaseConfig) return;
+    const supabase = createSupabaseClient(supabaseConfig.url, supabaseConfig.anonKey);
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+        setStatusMessage({ type: 'error', text: `Logout failed: ${error.message}` });
+    } else {
+        setStatusMessage({ type: 'success', text: 'Successfully logged out.' });
+    }
+    setTimeout(() => setStatusMessage(null), 3000);
+  }
+
   return (
     <div className="min-h-screen font-sans">
       <div className="container mx-auto max-w-2xl px-4 py-8">
@@ -404,6 +535,38 @@ const App: React.FC = () => {
             <p className="text-gray-500 dark:text-gray-400 mt-2">Organize your work, focus on the next action.</p>
           </div>
           <div className="flex items-center space-x-2">
+            {supabaseConfig?.url && (
+              <>
+                {supabaseSession && (
+                   <button
+                        onClick={handleLogout}
+                        className="p-2 rounded-full bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-800 transition-colors"
+                        aria-label="Logout from Supabase"
+                        title="Logout from Supabase"
+                    >
+                        <LogOutIcon />
+                    </button>
+                )}
+                <button
+                    onClick={() => triggerSupabaseAction('import')}
+                    className="p-2 rounded-full bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
+                    aria-label="Import from Supabase"
+                    title="Import from Supabase"
+                    disabled={isSupabaseLoading}
+                >
+                    {isSupabaseLoading && supabaseAction === 'import' ? <SpinnerIcon/> : <CloudDownloadIcon />}
+                </button>
+                 <button
+                    onClick={() => triggerSupabaseAction('export')}
+                    className="p-2 rounded-full bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
+                    aria-label="Export to Supabase"
+                    title="Export to Supabase"
+                    disabled={isSupabaseLoading}
+                >
+                    {isSupabaseLoading && supabaseAction === 'export' ? <SpinnerIcon/> : <CloudUploadIcon />}
+                </button>
+              </>
+            )}
             <button
                 onClick={handleExportTasks}
                 className="p-2 rounded-full bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
@@ -437,27 +600,40 @@ const App: React.FC = () => {
           </div>
         </header>
 
+        {statusMessage && (
+            <div className={`p-3 rounded-md mb-4 text-center ${statusMessage.type === 'success' ? 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300' : 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-300'}`}>
+                {statusMessage.text}
+            </div>
+        )}
+
         <div className="flex justify-center mb-8 bg-gray-200 dark:bg-gray-800 rounded-lg p-1">
             <button
                 onClick={() => setView('backlog')}
-                className={`w-1/3 py-2 px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'backlog' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
+                className={`w-1/4 py-2 px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'backlog' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
                 aria-label="Backlog View"
             >
                 <ListIcon />
             </button>
             <button
                 onClick={() => setView('today')}
-                className={`w-1/3 py-2 px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'today' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
+                className={`w-1/4 py-2 px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'today' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
                 aria-label="Today View"
             >
                 <CalendarIcon />
             </button>
             <button
                 onClick={() => setView('stats')}
-                className={`w-1/3 py-2 px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'stats' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
+                className={`w-1/4 py-2 px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'stats' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
                 aria-label="Stats View"
             >
                 <BarChartIcon />
+            </button>
+            <button
+                onClick={() => setView('settings')}
+                className={`w-1/4 py-2 px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'settings' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
+                aria-label="Settings View"
+            >
+                <SettingsIcon />
             </button>
         </div>
 
@@ -627,10 +803,46 @@ const App: React.FC = () => {
             )}
 
             {view === 'stats' && <StatsView tasks={tasks} />}
+            {view === 'settings' && <SettingsView currentConfig={supabaseConfig} onSave={handleSaveSupabaseConfig} />}
           </div>
         </main>
       </div>
       {modalTask && <SubtaskModal task={modalTask} onClose={handleCloseModal} onUpdateTask={handleUpdateTask} onSetSubtaskDueDate={handleSetSubtaskDueDate} />}
+      
+      {isPasswordModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex justify-center items-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-sm p-6 m-4">
+            <h3 className="text-lg font-bold mb-4">Enter Supabase Password</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              To {supabaseAction} your data, please enter the password for <span className="font-semibold">{supabaseConfig?.email}</span>.
+            </p>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handlePasswordConfirm()}
+              className="w-full bg-gray-100 dark:bg-gray-700 rounded-md px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              placeholder="Your Supabase password"
+              autoFocus
+            />
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => setIsPasswordModalOpen(false)}
+                className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePasswordConfirm}
+                className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md transition-colors"
+                disabled={isSupabaseLoading}
+              >
+                {isSupabaseLoading ? <SpinnerIcon /> : 'Confirm'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
