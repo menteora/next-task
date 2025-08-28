@@ -492,20 +492,27 @@ const App: React.FC = () => {
       if (action === 'export') {
         const { error } = await supabase
           .from('tasks')
-          .upsert({ user_id: session.user.id, data: tasks }, { onConflict: 'user_id' });
+          .insert({ user_id: session.user.id, data: tasks });
         if (error) {
             setStatusMessage({ type: 'error', text: `Export failed: ${error.message}` });
         } else {
-            setStatusMessage({ type: 'success', text: "Tasks successfully exported!" });
+            setStatusMessage({ type: 'success', text: "New revision saved to Supabase!" });
         }
       } else if (action === 'import') {
-        const { data, error } = await supabase.from('tasks').select('data').eq('user_id', session.user.id).single();
+        const { data, error } = await supabase
+          .from('tasks')
+          .select('data')
+          .eq('user_id', session.user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
         if (error || !data) {
             setStatusMessage({ type: 'error', text: `Import failed: ${error?.message || 'No data found.'}` });
         } else if (data) {
             setTasks(data.data || []);
             setTodayOrder([]);
-            setStatusMessage({ type: 'success', text: "Tasks successfully imported!" });
+            setStatusMessage({ type: 'success', text: "Latest revision successfully imported!" });
         }
       }
       
