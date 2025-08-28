@@ -1,0 +1,5 @@
+{
+  "name": "Backlog Todo List",
+  "description": "A powerful and beautiful todo list application called 'Backlog' that allows you to manage tasks and their sub-tasks with drag-and-drop reordering. The 'Next Action' feature keeps you focused on what's most important.",
+  "requestFramePermissions": []
+}
