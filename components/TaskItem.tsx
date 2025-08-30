@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Task } from '../types';
-import { TrashIcon, ChevronDownIcon, GripVerticalIcon, EditIcon, CalendarPlusIcon, RepeatIcon, CalendarIcon, ChevronUpIcon, ChevronDoubleUpIcon, ChevronDoubleDownIcon, ClockIcon } from './icons';
+import { TrashIcon, ChevronDownIcon, GripVerticalIcon, EditIcon, CalendarPlusIcon, RepeatIcon, CalendarIcon, ChevronUpIcon, ChevronDoubleUpIcon, ChevronDoubleDownIcon, ClockIcon, SnoozeIcon } from './icons';
 
 interface TaskItemProps {
   task: Task;
@@ -18,13 +18,17 @@ interface TaskItemProps {
   onMoveTask: (taskId: string, direction: 'up' | 'down' | 'top' | 'bottom') => void;
   taskIndex: number;
   totalTasks: number;
+  onSnoozeTask: (taskId: string, duration: 'day' | 'week' | 'month') => void;
+  onUnsnoozeTask?: (taskId: string) => void;
 }
 
-const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSubtaskModal, onDragStart, onDragOver, onDrop, isDragging, onSetSubtaskDueDate, onToggleTaskComplete, allTags, isCompactView, onMoveTask, taskIndex, totalTasks }) => {
+const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSubtaskModal, onDragStart, onDragOver, onDrop, isDragging, onSetSubtaskDueDate, onToggleTaskComplete, allTags, isCompactView, onMoveTask, taskIndex, totalTasks, onSnoozeTask, onUnsnoozeTask }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editingTitle, setEditingTitle] = useState(task.title);
   const [editingDescription, setEditingDescription] = useState(task.description);
   const [isRecurring, setIsRecurring] = useState(task.recurring ?? false);
+  const [editingSnoozeUntil, setEditingSnoozeUntil] = useState(task.snoozeUntil);
+  const [isSnoozeMenuOpen, setIsSnoozeMenuOpen] = useState(false);
 
   const lastTouchedDaysAgo = useMemo(() => {
     const completedSubtasks = task.subtasks.filter(st => st.completed && st.completionDate);
@@ -57,6 +61,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
         title: editingTitle.trim(),
         description: editingDescription.trim(),
         recurring: isRecurring,
+        snoozeUntil: editingSnoozeUntil,
       });
       setIsEditing(false);
     }
@@ -66,24 +71,21 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
     setEditingTitle(task.title);
     setEditingDescription(task.description);
     setIsRecurring(task.recurring ?? false);
+    setEditingSnoozeUntil(task.snoozeUntil);
     setIsEditing(false);
   };
 
   const handleAddTag = (tag: string) => {
     setEditingDescription(prev => `${prev.trim()} ${tag}`.trim());
   };
+  
+  const handleSnooze = (duration: 'day' | 'week' | 'month') => {
+    onSnoozeTask(task.id, duration);
+    setIsSnoozeMenuOpen(false);
+  };
 
   const nextAction = task.subtasks.find(st => !st.completed);
   const allSubtasksCompleted = task.subtasks.length > 0 && task.subtasks.every(st => st.completed);
-
-  const handleCompleteNextAction = () => {
-    if (nextAction) {
-      const updatedSubtasks = task.subtasks.map(st => 
-        st.id === nextAction.id ? { ...st, completed: true, completionDate: new Date().toISOString() } : st
-      );
-      onUpdate({ ...task, subtasks: updatedSubtasks });
-    }
-  };
 
   const renderDescriptionWithTags = (description: string) => {
     if (!description) return null;
@@ -168,15 +170,33 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
                     </div>
                 </div>
                 )}
-                <label className="flex items-center mt-3 text-sm text-gray-500 dark:text-gray-400">
-                    <input
-                        type="checkbox"
-                        checked={isRecurring}
-                        onChange={e => setIsRecurring(e.target.checked)}
-                        className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-gray-200 dark:bg-gray-700 text-teal-600 dark:text-teal-500 focus:ring-teal-500 dark:focus:ring-teal-600 cursor-pointer"
-                    />
-                    <span className="ml-2">Recurring Task</span>
-                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
+                    <label className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                        <input
+                            type="checkbox"
+                            checked={isRecurring}
+                            onChange={e => setIsRecurring(e.target.checked)}
+                            className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-gray-200 dark:bg-gray-700 text-teal-600 dark:text-teal-500 focus:ring-teal-500 dark:focus:ring-teal-600 cursor-pointer"
+                        />
+                        <span className="ml-2">Recurring Task</span>
+                    </label>
+                    <div>
+                        <label htmlFor={`snooze-${task.id}`} className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Snooze Until</label>
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="date"
+                                id={`snooze-${task.id}`}
+                                value={editingSnoozeUntil || ''}
+                                onChange={(e) => setEditingSnoozeUntil(e.target.value)}
+                                min={getTodayDateString()}
+                                className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                            />
+                            {editingSnoozeUntil && (
+                                <button onClick={() => setEditingSnoozeUntil(undefined)} className="text-xs text-gray-500 hover:text-red-500">Clear</button>
+                            )}
+                        </div>
+                    </div>
+                </div>
             </div>
             ) : (
                 <div>
@@ -221,6 +241,25 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
                 </div>
             ) : !task.completed ? (
                 <div className="flex items-center">
+                    <div className="relative inline-block text-left">
+                        <button
+                            onClick={() => setIsSnoozeMenuOpen(o => !o)}
+                            onBlur={() => setTimeout(() => setIsSnoozeMenuOpen(false), 100)}
+                            className="text-gray-400 dark:text-gray-500 hover:text-yellow-500 dark:hover:text-yellow-400 transition-colors p-1"
+                            aria-label={`Snooze task ${task.title}`}
+                        >
+                            <SnoozeIcon className="h-5 w-5" />
+                        </button>
+                        {isSnoozeMenuOpen && (
+                            <div className="origin-top-right absolute right-0 mt-2 w-40 rounded-md shadow-lg bg-white dark:bg-gray-900 ring-1 ring-black dark:ring-gray-700 ring-opacity-5 z-10 focus:outline-none">
+                                <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
+                                    <button onClick={() => handleSnooze('day')} className="w-full text-left block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800" role="menuitem">Snooze 1 Day</button>
+                                    <button onClick={() => handleSnooze('week')} className="w-full text-left block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800" role="menuitem">Snooze 1 Week</button>
+                                    <button onClick={() => handleSnooze('month')} className="w-full text-left block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800" role="menuitem">Snooze 1 Month</button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                     <button
                         onClick={() => setIsEditing(true)}
                         className="text-gray-400 dark:text-gray-500 hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors p-1"
@@ -239,6 +278,23 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
             ) : null}
         </div>
       </div>
+
+       {task.snoozeUntil && !task.completed && (
+        <div className="mt-3 p-2 bg-yellow-100 dark:bg-yellow-900/50 rounded-md flex items-center justify-between">
+          <p className="text-sm text-yellow-800 dark:text-yellow-300 flex items-center">
+            <SnoozeIcon className="h-4 w-4 inline mr-2" />
+            Snoozed until: {new Date(task.snoozeUntil + 'T00:00:00').toLocaleDateString()}
+          </p>
+          {onUnsnoozeTask && (
+            <button
+              onClick={() => onUnsnoozeTask(task.id)}
+              className="text-xs font-semibold bg-yellow-200 dark:bg-yellow-800/60 text-yellow-800 dark:text-yellow-200 hover:bg-yellow-300 dark:hover:bg-yellow-700/60 px-2 py-1 rounded-md transition-colors"
+            >
+              Unsnooze
+            </button>
+          )}
+        </div>
+      )}
       
       <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
         {task.completed && task.completionDate ? (
@@ -252,34 +308,34 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
             </button>
           </div>
         ) : nextAction ? (
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between group">
-            <div className="flex items-center">
-              <input 
-                type="checkbox"
-                id={`next-action-${nextAction.id}`}
-                className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-gray-200 dark:bg-gray-700 text-teal-600 dark:text-teal-500 focus:ring-teal-500 dark:focus:ring-teal-600 cursor-pointer"
-                onChange={handleCompleteNextAction}
-                checked={false}
-              />
-              <label htmlFor={`next-action-${nextAction.id}`} className="ml-3 text-gray-600 dark:text-gray-300 cursor-pointer">{nextAction.text}</label>
+          <div className="flex flex-col sm:flex-row items-center justify-between">
+            <div className="flex items-center flex-grow mb-2 sm:mb-0 sm:mr-2">
+              <button
+                onClick={() => onSetSubtaskDueDate(nextAction.id, task.id, getTodayDateString())}
+                className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-yellow-100 dark:hover:bg-yellow-900/50 hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors"
+                aria-label={`Schedule subtask '${nextAction.text}' for today`}
+                title="Schedule for Today"
+              >
+                <CalendarPlusIcon />
+              </button>
+              <span className="ml-2 text-gray-600 dark:text-gray-300">{nextAction.text}</span>
               {nextAction.dueDate && (
-                  <span className="ml-3 flex items-center text-xs text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded-full">
-                      <CalendarIcon className="h-4 w-4 mr-1" />
-                      {new Date(nextAction.dueDate + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'numeric', day: 'numeric' })}
-                  </span>
+                <span className="ml-3 flex items-center text-xs text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded-full">
+                  <CalendarIcon className="h-4 w-4 mr-1" />
+                  {new Date(
+                    nextAction.dueDate + 'T00:00:00'
+                  ).toLocaleDateString(undefined, {
+                    weekday: 'short',
+                    month: 'numeric',
+                    day: 'numeric',
+                  })}
+                </span>
               )}
             </div>
-             <div className="flex items-center space-x-2 self-end mt-2 sm:mt-0 sm:self-center">
-                <button
-                    onClick={() => onSetSubtaskDueDate(nextAction.id, task.id, getTodayDateString())}
-                    className="text-gray-400 dark:text-gray-500 hover:text-yellow-500 dark:hover:text-yellow-400 transition-colors opacity-0 group-hover:opacity-100"
-                    aria-label={`Schedule subtask ${nextAction.text} for today`}
-                >
-                    <CalendarPlusIcon />
-                </button>
-                <span className="text-xs font-semibold text-teal-700 dark:text-teal-400 bg-teal-100 dark:bg-teal-900/50 px-2 py-1 rounded-full">
+            <div className="flex-shrink-0 self-end sm:self-center">
+              <span className="text-xs font-semibold text-teal-700 dark:text-teal-400 bg-teal-100 dark:bg-teal-900/50 px-2 py-1 rounded-full">
                 NEXT ACTION
-                </span>
+              </span>
             </div>
           </div>
         ) : allSubtasksCompleted ? (

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Task, Subtask } from '../types';
-import { TrashIcon, GripVerticalIcon, EditIcon, CalendarPlusIcon, CalendarIcon } from './icons';
+import { TrashIcon, GripVerticalIcon, EditIcon, CalendarPlusIcon, CalendarIcon, ChevronDoubleUpIcon, ChevronUpIcon, ChevronDownIcon, ChevronDoubleDownIcon } from './icons';
 
 interface SubtaskModalProps {
   task: Task;
@@ -77,6 +77,31 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
     }
     handleCancelEdit();
   };
+  
+  const handleMoveSubtask = (subtaskId: string, direction: 'up' | 'down' | 'top' | 'bottom') => {
+    const fromIndex = task.subtasks.findIndex(st => st.id === subtaskId);
+    if (fromIndex === -1) return;
+
+    const newSubtasks = [...task.subtasks];
+    
+    if (direction === 'top') {
+        if (fromIndex === 0) return;
+        const [item] = newSubtasks.splice(fromIndex, 1);
+        newSubtasks.unshift(item);
+    } else if (direction === 'bottom') {
+        if (fromIndex === newSubtasks.length - 1) return;
+        const [item] = newSubtasks.splice(fromIndex, 1);
+        newSubtasks.push(item);
+    } else if (direction === 'up') {
+        if (fromIndex === 0) return;
+        [newSubtasks[fromIndex], newSubtasks[fromIndex - 1]] = [newSubtasks[fromIndex - 1], newSubtasks[fromIndex]];
+    } else if (direction === 'down') {
+        if (fromIndex === newSubtasks.length - 1) return;
+        [newSubtasks[fromIndex], newSubtasks[fromIndex + 1]] = [newSubtasks[fromIndex + 1], newSubtasks[fromIndex]];
+    }
+
+    onUpdateTask({ ...task, subtasks: newSubtasks });
+  };
 
   const onDragStart = (e: React.DragEvent<HTMLLIElement>, subtask: Subtask) => {
     setDraggedSubtask(subtask);
@@ -113,7 +138,10 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
         <div className="space-y-2 mb-6 max-h-72 overflow-y-auto pr-2">
           {task.subtasks.length > 0 ? (
             <ul>
-                {task.subtasks.map(subtask => (
+                {task.subtasks.map((subtask, index) => {
+                    const isAtTop = index === 0;
+                    const isAtBottom = index === task.subtasks.length - 1;
+                    return (
                     <li key={subtask.id}
                         draggable={!editingSubtaskId}
                         onDragStart={(e) => onDragStart(e, subtask)}
@@ -160,6 +188,12 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
                         </div>
                         {editingSubtaskId !== subtask.id && (
                            <div className="flex items-center justify-end flex-wrap gap-2 mt-2 sm:mt-0 sm:ml-4">
+                                <div className="flex items-center border border-gray-200 dark:border-gray-600 rounded-md">
+                                    <button onClick={() => handleMoveSubtask(subtask.id, 'top')} disabled={isAtTop} className="p-1.5 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-cyan-500 dark:text-gray-400 dark:hover:text-cyan-400 transition-colors" title="Move to top" aria-label="Move subtask to top"><ChevronDoubleUpIcon className="h-4 w-4" /></button>
+                                    <button onClick={() => handleMoveSubtask(subtask.id, 'up')} disabled={isAtTop} className="p-1.5 border-l border-gray-200 dark:border-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-cyan-500 dark:text-gray-400 dark:hover:text-cyan-400 transition-colors" title="Move up" aria-label="Move subtask up"><ChevronUpIcon className="h-4 w-4" /></button>
+                                    <button onClick={() => handleMoveSubtask(subtask.id, 'down')} disabled={isAtBottom} className="p-1.5 border-l border-gray-200 dark:border-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-cyan-500 dark:text-gray-400 dark:hover:text-cyan-400 transition-colors" title="Move down" aria-label="Move subtask down"><ChevronDownIcon className="h-4 w-4" /></button>
+                                    <button onClick={() => handleMoveSubtask(subtask.id, 'bottom')} disabled={isAtBottom} className="p-1.5 border-l border-gray-200 dark:border-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-cyan-500 dark:text-gray-400 dark:hover:text-cyan-400 transition-colors" title="Move to bottom" aria-label="Move subtask to bottom"><ChevronDoubleDownIcon className="h-4 w-4" /></button>
+                                </div>
                                 <input
                                   type="date"
                                   value={subtask.dueDate || ''}
@@ -178,7 +212,7 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
                             </div>
                         )}
                     </li>
-                ))}
+                )})}
             </ul>
           ) : (
             <p className="text-gray-500 italic text-center py-4">No sub-tasks yet. Add one below!</p>

@@ -15,4 +15,5 @@ export interface Task {
   recurring?: boolean;
   completed: boolean;
   completionDate?: string;
+  snoozeUntil?: string;
 }
