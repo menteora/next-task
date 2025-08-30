@@ -6,12 +6,12 @@ import TodaySubtaskItem from './components/TodaySubtaskItem';
 import StatsView from './components/StatsView';
 import SettingsView from './components/SettingsView';
 import { createSupabaseClient } from './supabaseClient';
-import { PlusIcon, SunIcon, MoonIcon, ListIcon, CalendarIcon, BarChartIcon, ArrowsPointingInIcon, ArrowsPointingOutIcon, DownloadIcon, UploadIcon, SettingsIcon, CloudUploadIcon, CloudDownloadIcon, SpinnerIcon, LogOutIcon, ArchiveIcon } from './components/icons';
+import { PlusIcon, SunIcon, MoonIcon, ListIcon, CalendarIcon, BarChartIcon, ArrowsPointingInIcon, ArrowsPointingOutIcon, DownloadIcon, UploadIcon, SettingsIcon, CloudUploadIcon, CloudDownloadIcon, SpinnerIcon, LogOutIcon, ArchiveIcon, SnoozeIcon } from './components/icons';
 import { Session } from '@supabase/supabase-js';
 
 type TodayItem = { subtask: Subtask, parentTask: Task };
 type Theme = 'light' | 'dark';
-type View = 'backlog' | 'today' | 'archive' | 'stats' | 'settings';
+type View = 'backlog' | 'today' | 'snoozed' | 'archive' | 'stats' | 'settings';
 type SupabaseAction = 'import' | 'export';
 
 interface SupabaseConfig {
@@ -176,7 +176,13 @@ const App: React.FC = () => {
   };
 
   const filteredTasks = useMemo(() => {
-    const activeTasks = tasks.filter(task => !task.completed);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const activeTasks = tasks.filter(task => 
+      !task.completed &&
+      (!task.snoozeUntil || new Date(task.snoozeUntil) <= today)
+    );
     if (selectedTags.length === 0) {
         return activeTasks;
     }
@@ -185,6 +191,14 @@ const App: React.FC = () => {
         return selectedTags.every(selectedTag => taskTags.includes(selectedTag));
     });
   }, [tasks, selectedTags]);
+
+  const snoozedTasks = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return tasks
+      .filter(task => task.snoozeUntil && new Date(task.snoozeUntil) > today && !task.completed)
+      .sort((a, b) => new Date(a.snoozeUntil!).getTime() - new Date(b.snoozeUntil!).getTime());
+  }, [tasks]);
 
   const archivedTasks = useMemo(() => {
     return tasks
@@ -276,6 +290,29 @@ const App: React.FC = () => {
         };
       })
     );
+  }, []);
+
+  const handleSnoozeTask = useCallback((taskId: string, duration: 'day' | 'week' | 'month') => {
+    const newDate = new Date();
+    newDate.setHours(0, 0, 0, 0); // Start of day
+    if (duration === 'day') newDate.setDate(newDate.getDate() + 1);
+    if (duration === 'week') newDate.setDate(newDate.getDate() + 7);
+    if (duration === 'month') newDate.setMonth(newDate.getMonth() + 1);
+    const snoozeUntilDate = newDate.toISOString().split('T')[0];
+
+    setTasks(prevTasks => prevTasks.map(task => 
+        task.id === taskId ? { ...task, snoozeUntil: snoozeUntilDate } : task
+    ));
+  }, []);
+
+  const handleUnsnoozeTask = useCallback((taskId: string) => {
+      setTasks(prevTasks => prevTasks.map(task => {
+          if (task.id === taskId) {
+              const { snoozeUntil, ...rest } = task;
+              return rest;
+          }
+          return task;
+      }));
   }, []);
 
   const handleSetSubtaskDueDate = useCallback((subtaskId: string, taskId: string, date: string) => {
@@ -386,6 +423,32 @@ const App: React.FC = () => {
     });
 }, [filteredTasks]);
 
+const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' | 'down' | 'top' | 'bottom') => {
+    setTodayOrder(currentOrder => {
+        const fromIndex = currentOrder.findIndex(id => id === subtaskId);
+        if (fromIndex === -1) return currentOrder;
+
+        const newOrder = [...currentOrder];
+        
+        if (direction === 'top') {
+            if (fromIndex === 0) return currentOrder;
+            const [item] = newOrder.splice(fromIndex, 1);
+            newOrder.unshift(item);
+        } else if (direction === 'bottom') {
+            if (fromIndex === newOrder.length - 1) return currentOrder;
+            const [item] = newOrder.splice(fromIndex, 1);
+            newOrder.push(item);
+        } else if (direction === 'up') {
+            if (fromIndex === 0) return currentOrder;
+            [newOrder[fromIndex], newOrder[fromIndex - 1]] = [newOrder[fromIndex - 1], newOrder[fromIndex]];
+        } else if (direction === 'down') {
+            if (fromIndex === newOrder.length - 1) return currentOrder;
+            [newOrder[fromIndex], newOrder[fromIndex + 1]] = [newOrder[fromIndex + 1], newOrder[fromIndex]];
+        }
+        return newOrder;
+    });
+}, []);
+
 
   const handleOpenSubtaskModal = useCallback((task: Task) => {
     setModalTask(task);
@@ -432,21 +495,26 @@ const App: React.FC = () => {
 
     const fromId = draggedTodayItem.subtask.id;
     const toId = targetItem.subtask.id;
-
-    if (fromId === toId) return;
-
-    const fromIndex = todayOrder.findIndex(id => id === fromId);
-    const toIndex = todayOrder.findIndex(id => id === toId);
     
-    if (fromIndex === -1 || toIndex === -1) return;
+    if (fromId !== toId) {
+      setTodayOrder(currentOrder => {
+        const fromIndex = currentOrder.findIndex(id => id === fromId);
+        const toIndex = currentOrder.findIndex(id => id === toId);
+        
+        if (fromIndex === -1 || toIndex === -1) {
+          return currentOrder;
+        }
 
-    const newOrder = [...todayOrder];
-    const [movedItem] = newOrder.splice(fromIndex, 1);
-    newOrder.splice(toIndex, 0, movedItem);
+        const newOrder = [...currentOrder];
+        const [movedItem] = newOrder.splice(fromIndex, 1);
+        newOrder.splice(toIndex, 0, movedItem);
 
-    setTodayOrder(newOrder);
+        return newOrder;
+      });
+    }
+
     setDraggedTodayItem(null);
-  }, [draggedTodayItem, todayOrder]);
+  }, [draggedTodayItem]);
 
   const handleExportTasks = useCallback(() => {
     try {
@@ -674,35 +742,42 @@ const App: React.FC = () => {
         <div className="flex justify-center mb-6 sm:mb-8 bg-gray-200 dark:bg-gray-800 rounded-lg p-1">
             <button
                 onClick={() => setView('backlog')}
-                className={`w-1/5 py-2 px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'backlog' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
+                className={`w-1/6 py-2 px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'backlog' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
                 aria-label="Backlog View"
             >
                 <ListIcon />
             </button>
             <button
                 onClick={() => setView('today')}
-                className={`w-1/5 py-2 px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'today' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
+                className={`w-1/6 py-2 px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'today' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
                 aria-label="Today View"
             >
                 <CalendarIcon />
             </button>
+            <button
+                onClick={() => setView('snoozed')}
+                className={`w-1/6 py-2 px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'snoozed' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
+                aria-label="Snoozed View"
+            >
+                <SnoozeIcon />
+            </button>
              <button
                 onClick={() => setView('archive')}
-                className={`w-1/5 py-2 px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'archive' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
+                className={`w-1/6 py-2 px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'archive' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
                 aria-label="Archive View"
             >
                 <ArchiveIcon />
             </button>
             <button
                 onClick={() => setView('stats')}
-                className={`w-1/5 py-2 px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'stats' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
+                className={`w-1/6 py-2 px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'stats' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
                 aria-label="Stats View"
             >
                 <BarChartIcon />
             </button>
             <button
                 onClick={() => setView('settings')}
-                className={`w-1/5 py-2 px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'settings' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
+                className={`w-1/6 py-2 px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'settings' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
                 aria-label="Settings View"
             >
                 <SettingsIcon />
@@ -834,6 +909,7 @@ const App: React.FC = () => {
                             onMoveTask={handleMoveTask}
                             taskIndex={index}
                             totalTasks={filteredTasks.length}
+                            onSnoozeTask={handleSnoozeTask}
                         />
                     ))}
                     {tasks.filter(t => !t.completed).length > 0 && filteredTasks.length === 0 && (
@@ -842,10 +918,43 @@ const App: React.FC = () => {
                             <p className="text-gray-500 dark:text-gray-600 mt-2">Try adjusting or clearing your filters.</p>
                         </div>
                     )}
-                    {tasks.filter(t => !t.completed).length === 0 && (
-                        <div className="text-center py-10 px-4">
+                    {tasks.filter(t => !t.completed && (!t.snoozeUntil || new Date(t.snoozeUntil) <= new Date())).length === 0 && (
+                         <div className="text-center py-10 px-4">
                             <h2 className="text-xl sm:text-2xl font-semibold text-gray-400 dark:text-gray-500">Your backlog is empty.</h2>
-                            <p className="text-gray-500 dark:text-gray-600 mt-2">Add a new task to get started!</p>
+                            <p className="text-gray-500 dark:text-gray-600 mt-2">Add a new task, or check your snoozed tasks.</p>
+                        </div>
+                    )}
+                </>
+            )}
+
+            {view === 'snoozed' && (
+                <>
+                    {snoozedTasks.map((task, index) => (
+                         <TaskItem
+                            key={task.id}
+                            task={task}
+                            onDelete={handleDeleteTask}
+                            onUpdate={handleUpdateTask}
+                            onOpenSubtaskModal={handleOpenSubtaskModal}
+                            onDragStart={() => {}}
+                            onDragOver={() => {}}
+                            onDrop={() => {}}
+                            isDragging={false}
+                            onSetSubtaskDueDate={handleSetSubtaskDueDate}
+                            onToggleTaskComplete={handleToggleTaskComplete}
+                            allTags={allTags}
+                            isCompactView={false}
+                            onMoveTask={() => {}}
+                            taskIndex={index}
+                            totalTasks={snoozedTasks.length}
+                            onSnoozeTask={handleSnoozeTask}
+                            onUnsnoozeTask={handleUnsnoozeTask}
+                        />
+                    ))}
+                    {snoozedTasks.length === 0 && (
+                        <div className="text-center py-10 px-4">
+                            <h2 className="text-xl sm:text-2xl font-semibold text-gray-400 dark:text-gray-500">No snoozed tasks.</h2>
+                            <p className="text-gray-500 dark:text-gray-600 mt-2">You can snooze a task from your backlog.</p>
                         </div>
                     )}
                 </>
@@ -871,6 +980,7 @@ const App: React.FC = () => {
                             onMoveTask={() => {}}
                             taskIndex={index}
                             totalTasks={archivedTasks.length}
+                            onSnoozeTask={handleSnoozeTask}
                         />
                     ))}
                     {archivedTasks.length === 0 && (
@@ -885,7 +995,7 @@ const App: React.FC = () => {
             {view === 'today' && (
                  <>
                     {sortedTodaySubtasks.length > 0 ? (
-                        sortedTodaySubtasks.map(item => (
+                        sortedTodaySubtasks.map((item, index) => (
                            <TodaySubtaskItem
                             key={item.subtask.id}
                             item={{ subtask: item.subtask, parentTaskTitle: item.parentTask.title }}
@@ -895,6 +1005,9 @@ const App: React.FC = () => {
                             onDragOver={onDragOver}
                             onDrop={() => onTodayDrop(item)}
                             isDragging={draggedTodayItem?.subtask.id === item.subtask.id}
+                            onMoveSubtask={handleMoveTodaySubtask}
+                            subtaskIndex={index}
+                            totalSubtasks={sortedTodaySubtasks.length}
                            />
                         ))
                     ) : (

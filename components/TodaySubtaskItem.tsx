@@ -1,6 +1,6 @@
 import React from 'react';
 import { Subtask } from '../types';
-import { TrashIcon, GripVerticalIcon } from './icons';
+import { TrashIcon, GripVerticalIcon, ChevronDoubleUpIcon, ChevronUpIcon, ChevronDownIcon, ChevronDoubleDownIcon } from './icons';
 
 interface TodaySubtaskItemProps {
   item: {
@@ -13,17 +13,23 @@ interface TodaySubtaskItemProps {
   onDragOver: (e: React.DragEvent<HTMLDivElement>) => void;
   onDrop: (e: React.DragEvent<HTMLDivElement>) => void;
   isDragging: boolean;
+  onMoveSubtask: (subtaskId: string, direction: 'up' | 'down' | 'top' | 'bottom') => void;
+  subtaskIndex: number;
+  totalSubtasks: number;
 }
 
-const TodaySubtaskItem: React.FC<TodaySubtaskItemProps> = ({ item, onToggleComplete, onRemove, onDragStart, onDragOver, onDrop, isDragging }) => {
+const TodaySubtaskItem: React.FC<TodaySubtaskItemProps> = ({ item, onToggleComplete, onRemove, onDragStart, onDragOver, onDrop, isDragging, onMoveSubtask, subtaskIndex, totalSubtasks }) => {
   const { subtask, parentTaskTitle } = item;
+  const isAtTop = subtaskIndex === 0;
+  const isAtBottom = subtaskIndex === totalSubtasks - 1;
+
   return (
     <div 
         draggable
         onDragStart={onDragStart}
         onDragOver={onDragOver}
         onDrop={onDrop}
-        className={`bg-white dark:bg-gray-800 p-2 sm:p-3 rounded-lg shadow-md mb-3 flex items-center justify-between transition-opacity ${isDragging ? 'opacity-50' : 'opacity-100'}`}
+        className={`bg-white dark:bg-gray-800 p-2 sm:p-3 rounded-lg shadow-md mb-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-between transition-opacity ${isDragging ? 'opacity-50' : 'opacity-100'}`}
     >
       <div className="flex items-center flex-grow min-w-0">
         <div className="cursor-grab p-1 mr-1 sm:mr-2">
@@ -48,13 +54,21 @@ const TodaySubtaskItem: React.FC<TodaySubtaskItemProps> = ({ item, onToggleCompl
             <p className="text-xs text-cyan-600 dark:text-cyan-500 mt-0.5 truncate">{parentTaskTitle}</p>
         </div>
       </div>
-      <button
-        onClick={onRemove}
-        className="text-gray-400 dark:text-gray-500 hover:text-red-500 transition-colors ml-2 p-1 flex-shrink-0"
-        aria-label={`Remove subtask ${subtask.text} from today`}
-      >
-        <TrashIcon />
-      </button>
+      <div className="flex items-center justify-end flex-wrap gap-2 mt-2 sm:mt-0 sm:ml-4 flex-shrink-0">
+        <div className="flex items-center border border-gray-200 dark:border-gray-600 rounded-md">
+            <button onClick={() => onMoveSubtask(subtask.id, 'top')} disabled={isAtTop} className="p-1.5 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-cyan-500 dark:text-gray-400 dark:hover:text-cyan-400 transition-colors" title="Move to top" aria-label="Move subtask to top"><ChevronDoubleUpIcon className="h-4 w-4" /></button>
+            <button onClick={() => onMoveSubtask(subtask.id, 'up')} disabled={isAtTop} className="p-1.5 border-l border-gray-200 dark:border-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-cyan-500 dark:text-gray-400 dark:hover:text-cyan-400 transition-colors" title="Move up" aria-label="Move subtask up"><ChevronUpIcon className="h-4 w-4" /></button>
+            <button onClick={() => onMoveSubtask(subtask.id, 'down')} disabled={isAtBottom} className="p-1.5 border-l border-gray-200 dark:border-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-cyan-500 dark:text-gray-400 dark:hover:text-cyan-400 transition-colors" title="Move down" aria-label="Move subtask down"><ChevronDownIcon className="h-4 w-4" /></button>
+            <button onClick={() => onMoveSubtask(subtask.id, 'bottom')} disabled={isAtBottom} className="p-1.5 border-l border-gray-200 dark:border-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-cyan-500 dark:text-gray-400 dark:hover:text-cyan-400 transition-colors" title="Move to bottom" aria-label="Move subtask to bottom"><ChevronDoubleDownIcon className="h-4 w-4" /></button>
+        </div>
+        <button
+          onClick={onRemove}
+          className="text-gray-400 dark:text-gray-500 hover:text-red-500 transition-colors p-1"
+          aria-label={`Remove subtask ${subtask.text} from today`}
+        >
+          <TrashIcon />
+        </button>
+      </div>
     </div>
   );
 };
