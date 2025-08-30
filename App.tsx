@@ -6,12 +6,12 @@ import TodaySubtaskItem from './components/TodaySubtaskItem';
 import StatsView from './components/StatsView';
 import SettingsView from './components/SettingsView';
 import { createSupabaseClient } from './supabaseClient';
-import { PlusIcon, SunIcon, MoonIcon, ListIcon, CalendarIcon, BarChartIcon, ArrowsPointingInIcon, ArrowsPointingOutIcon, DownloadIcon, UploadIcon, SettingsIcon, CloudUploadIcon, CloudDownloadIcon, SpinnerIcon, LogOutIcon } from './components/icons';
+import { PlusIcon, SunIcon, MoonIcon, ListIcon, CalendarIcon, BarChartIcon, ArrowsPointingInIcon, ArrowsPointingOutIcon, DownloadIcon, UploadIcon, SettingsIcon, CloudUploadIcon, CloudDownloadIcon, SpinnerIcon, LogOutIcon, ArchiveIcon } from './components/icons';
 import { Session } from '@supabase/supabase-js';
 
 type TodayItem = { subtask: Subtask, parentTask: Task };
 type Theme = 'light' | 'dark';
-type View = 'backlog' | 'today' | 'stats' | 'settings';
+type View = 'backlog' | 'today' | 'archive' | 'stats' | 'settings';
 type SupabaseAction = 'import' | 'export';
 
 interface SupabaseConfig {
@@ -164,7 +164,9 @@ const App: React.FC = () => {
   const allTags = useMemo(() => {
     const tags = new Set<string>();
     tasks.forEach(task => {
-        extractTags(task.description).forEach(tag => tags.add(tag));
+        if (!task.completed) {
+            extractTags(task.description).forEach(tag => tags.add(tag));
+        }
     });
     return Array.from(tags).sort();
   }, [tasks]);
@@ -174,14 +176,26 @@ const App: React.FC = () => {
   };
 
   const filteredTasks = useMemo(() => {
+    const activeTasks = tasks.filter(task => !task.completed);
     if (selectedTags.length === 0) {
-        return tasks;
+        return activeTasks;
     }
-    return tasks.filter(task => {
+    return activeTasks.filter(task => {
         const taskTags = extractTags(task.description);
         return selectedTags.every(selectedTag => taskTags.includes(selectedTag));
     });
   }, [tasks, selectedTags]);
+
+  const archivedTasks = useMemo(() => {
+    return tasks
+      .filter(task => task.completed)
+      .sort((a, b) => {
+        if (a.completionDate && b.completionDate) {
+          return new Date(b.completionDate).getTime() - new Date(a.completionDate).getTime();
+        }
+        return 0;
+      });
+  }, [tasks]);
   
   const todaySubtasks = useMemo(() => {
       const todayString = getTodayDateString();
@@ -231,7 +245,7 @@ const App: React.FC = () => {
         recurring: isNewTaskRecurring,
         completed: false,
       };
-      setTasks(prevTasks => [newTask, ...prevTasks]);
+      setTasks(prevTasks => [newTask, ...prevTasks.filter(t => !t.completed), ...prevTasks.filter(t => t.completed)]);
       setNewTaskTitle('');
       setNewTaskDescription('');
       setIsNewTaskRecurring(false);
@@ -335,38 +349,40 @@ const App: React.FC = () => {
   
   const handleMoveTask = useCallback((taskId: string, direction: 'up' | 'down' | 'top' | 'bottom') => {
     setTasks(currentTasks => {
-        const taskToMove = currentTasks.find(t => t.id === taskId);
+        const activeTasks = currentTasks.filter(t => !t.completed);
+        const completedTasks = currentTasks.filter(t => t.completed);
+
+        const taskToMove = activeTasks.find(t => t.id === taskId);
         if (!taskToMove) return currentTasks;
 
+        let reorderedActiveTasks = [...activeTasks];
+
         if (direction === 'top') {
-            return [taskToMove, ...currentTasks.filter(t => t.id !== taskId)];
+            reorderedActiveTasks = [taskToMove, ...activeTasks.filter(t => t.id !== taskId)];
+        } else if (direction === 'bottom') {
+            reorderedActiveTasks = [...activeTasks.filter(t => t.id !== taskId), taskToMove];
+        } else {
+            const taskIndexInFiltered = filteredTasks.findIndex(t => t.id === taskId);
+            if (taskIndexInFiltered === -1) return currentTasks;
+
+            let targetTask: Task | undefined;
+            if (direction === 'up' && taskIndexInFiltered > 0) {
+                targetTask = filteredTasks[taskIndexInFiltered - 1];
+            } else if (direction === 'down' && taskIndexInFiltered < filteredTasks.length - 1) {
+                targetTask = filteredTasks[taskIndexInFiltered + 1];
+            }
+
+            if (!targetTask) return currentTasks;
+
+            const fromIndex = activeTasks.findIndex(t => t.id === taskId);
+            const toIndex = activeTasks.findIndex(t => t.id === targetTask!.id);
+
+            if (fromIndex === -1 || toIndex === -1) return currentTasks;
+            
+            [reorderedActiveTasks[fromIndex], reorderedActiveTasks[toIndex]] = [reorderedActiveTasks[toIndex], reorderedActiveTasks[fromIndex]];
         }
-        if (direction === 'bottom') {
-            return [...currentTasks.filter(t => t.id !== taskId), taskToMove];
-        }
-
-        const taskIndexInFiltered = filteredTasks.findIndex(t => t.id === taskId);
-        if (taskIndexInFiltered === -1) return currentTasks;
-
-        let targetTask: Task | undefined;
-        if (direction === 'up' && taskIndexInFiltered > 0) {
-            targetTask = filteredTasks[taskIndexInFiltered - 1];
-        } else if (direction === 'down' && taskIndexInFiltered < filteredTasks.length - 1) {
-            targetTask = filteredTasks[taskIndexInFiltered + 1];
-        }
-
-        if (!targetTask) return currentTasks;
-
-        const fromIndex = currentTasks.findIndex(t => t.id === taskId);
-        const toIndex = currentTasks.findIndex(t => t.id === targetTask!.id);
-
-        if (fromIndex === -1 || toIndex === -1) return currentTasks;
-
-        const newTasks = [...currentTasks];
-        // Swap elements for 'up' and 'down' to respect filtered view
-        [newTasks[fromIndex], newTasks[toIndex]] = [newTasks[toIndex], newTasks[fromIndex]];
         
-        return newTasks;
+        return [...reorderedActiveTasks, ...completedTasks];
     });
 }, [filteredTasks]);
 
@@ -389,20 +405,25 @@ const App: React.FC = () => {
 
   const onDrop = useCallback((e: React.DragEvent<HTMLDivElement>, targetTask: Task) => {
     e.preventDefault();
-    if (!draggedTask || view !== 'backlog') return;
+    if (!draggedTask || view !== 'backlog' || draggedTask.completed || targetTask.completed) return;
 
-    const fromIndex = tasks.findIndex(task => task.id === draggedTask.id);
-    const toIndex = tasks.findIndex(task => task.id === targetTask.id);
+    setTasks(currentTasks => {
+        const activeTasks = currentTasks.filter(t => !t.completed);
+        const completedTasks = currentTasks.filter(t => t.completed);
 
-    if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) return;
+        const fromIndex = activeTasks.findIndex(task => task.id === draggedTask.id);
+        const toIndex = activeTasks.findIndex(task => task.id === targetTask.id);
 
-    const items = [...tasks];
-    const [reorderedItem] = items.splice(fromIndex, 1);
-    items.splice(toIndex, 0, reorderedItem);
+        if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) return currentTasks;
 
-    setTasks(items);
+        const items = [...activeTasks];
+        const [reorderedItem] = items.splice(fromIndex, 1);
+        items.splice(toIndex, 0, reorderedItem);
+
+        return [...items, ...completedTasks];
+    });
     setDraggedTask(null);
-  }, [draggedTask, tasks, view]);
+  }, [draggedTask, view]);
   
   const onTodayDragStart = useCallback((item: TodayItem) => setDraggedTodayItem(item), []);
   
@@ -653,28 +674,35 @@ const App: React.FC = () => {
         <div className="flex justify-center mb-6 sm:mb-8 bg-gray-200 dark:bg-gray-800 rounded-lg p-1">
             <button
                 onClick={() => setView('backlog')}
-                className={`w-1/4 py-2 px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'backlog' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
+                className={`w-1/5 py-2 px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'backlog' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
                 aria-label="Backlog View"
             >
                 <ListIcon />
             </button>
             <button
                 onClick={() => setView('today')}
-                className={`w-1/4 py-2 px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'today' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
+                className={`w-1/5 py-2 px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'today' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
                 aria-label="Today View"
             >
                 <CalendarIcon />
             </button>
+             <button
+                onClick={() => setView('archive')}
+                className={`w-1/5 py-2 px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'archive' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
+                aria-label="Archive View"
+            >
+                <ArchiveIcon />
+            </button>
             <button
                 onClick={() => setView('stats')}
-                className={`w-1/4 py-2 px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'stats' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
+                className={`w-1/5 py-2 px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'stats' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
                 aria-label="Stats View"
             >
                 <BarChartIcon />
             </button>
             <button
                 onClick={() => setView('settings')}
-                className={`w-1/4 py-2 px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'settings' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
+                className={`w-1/5 py-2 px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'settings' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
                 aria-label="Settings View"
             >
                 <SettingsIcon />
@@ -683,6 +711,7 @@ const App: React.FC = () => {
 
         <main>
           {view === 'backlog' && (
+            <>
             <div className="flex flex-col sm:flex-row justify-between items-start mb-6 gap-4">
                 {allTags.length > 0 && (
                     <div className="p-3 sm:p-4 bg-white dark:bg-gray-800 rounded-lg flex-grow w-full">
@@ -710,7 +739,7 @@ const App: React.FC = () => {
                     </div>
                 )}
                 
-                {tasks.length > 0 && (
+                {tasks.filter(t => !t.completed).length > 0 && (
                     <button 
                         onClick={() => setIsCompactView(!isCompactView)} 
                         className="p-2 rounded-md bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors self-end sm:self-center"
@@ -721,10 +750,6 @@ const App: React.FC = () => {
                     </button>
                 )}
             </div>
-          )}
-
-
-          {view === 'backlog' && (
             <div className="mb-6 sm:mb-8">
                 {isFormVisible ? (
                 <div className="bg-white dark:bg-gray-800 p-3 sm:p-4 rounded-lg shadow-lg animate-fade-in-down">
@@ -785,8 +810,9 @@ const App: React.FC = () => {
                 </button>
                 )}
             </div>
-           )}
-          
+            </>
+          )}
+
           <div className="task-list">
              {view === 'backlog' && (
                 <>
@@ -810,16 +836,47 @@ const App: React.FC = () => {
                             totalTasks={filteredTasks.length}
                         />
                     ))}
-                    {tasks.length > 0 && filteredTasks.length === 0 && (
+                    {tasks.filter(t => !t.completed).length > 0 && filteredTasks.length === 0 && (
                         <div className="text-center py-10 px-4">
                             <h2 className="text-xl sm:text-2xl font-semibold text-gray-400 dark:text-gray-500">No tasks match the selected filters.</h2>
                             <p className="text-gray-500 dark:text-gray-600 mt-2">Try adjusting or clearing your filters.</p>
                         </div>
                     )}
-                    {tasks.length === 0 && (
+                    {tasks.filter(t => !t.completed).length === 0 && (
                         <div className="text-center py-10 px-4">
                             <h2 className="text-xl sm:text-2xl font-semibold text-gray-400 dark:text-gray-500">Your backlog is empty.</h2>
                             <p className="text-gray-500 dark:text-gray-600 mt-2">Add a new task to get started!</p>
+                        </div>
+                    )}
+                </>
+            )}
+            
+            {view === 'archive' && (
+                <>
+                    {archivedTasks.map((task, index) => (
+                         <TaskItem
+                            key={task.id}
+                            task={task}
+                            onDelete={handleDeleteTask}
+                            onUpdate={handleUpdateTask}
+                            onOpenSubtaskModal={handleOpenSubtaskModal}
+                            onDragStart={() => {}}
+                            onDragOver={() => {}}
+                            onDrop={() => {}}
+                            isDragging={false}
+                            onSetSubtaskDueDate={handleSetSubtaskDueDate}
+                            onToggleTaskComplete={handleToggleTaskComplete}
+                            allTags={[]}
+                            isCompactView={false}
+                            onMoveTask={() => {}}
+                            taskIndex={index}
+                            totalTasks={archivedTasks.length}
+                        />
+                    ))}
+                    {archivedTasks.length === 0 && (
+                        <div className="text-center py-10 px-4">
+                            <h2 className="text-xl sm:text-2xl font-semibold text-gray-400 dark:text-gray-500">The archive is empty.</h2>
+                            <p className="text-gray-500 dark:text-gray-600 mt-2">Complete a task in your backlog to see it here.</p>
                         </div>
                     )}
                 </>
