@@ -246,21 +246,37 @@ const App: React.FC = () => {
 
   useEffect(() => {
     setTodayOrder(currentOrder => {
-      const todaySubtaskIds = new Set(todaySubtasks.map(item => item.subtask.id));
-      const filteredOrder = currentOrder.filter(id => todaySubtaskIds.has(id));
-      todaySubtasks.forEach(item => {
-        if (!filteredOrder.includes(item.subtask.id)) {
-          filteredOrder.push(item.subtask.id);
+      const incompleteTodaySubtasksList = todaySubtasks.filter(item => !item.subtask.completed);
+      const incompleteTodaySubtaskIds = new Set(incompleteTodaySubtasksList.map(item => item.subtask.id));
+      
+      const newOrder = currentOrder.filter(id => incompleteTodaySubtaskIds.has(id));
+
+      incompleteTodaySubtasksList.forEach(item => {
+        if (!newOrder.includes(item.subtask.id)) {
+          newOrder.push(item.subtask.id);
         }
       });
-      return filteredOrder;
+      
+      return newOrder;
     });
   }, [todaySubtasks]);
 
-  const sortedTodaySubtasks = useMemo(() => {
+  const incompleteTodaySubtasks = useMemo(() => {
     const subtaskMap = new Map(todaySubtasks.map(item => [item.subtask.id, item]));
-    return todayOrder.map(id => subtaskMap.get(id)).filter(Boolean) as TodayItem[];
+    return todayOrder
+        .map(id => subtaskMap.get(id))
+        .filter((item): item is TodayItem => !!item && !item.subtask.completed);
   }, [todayOrder, todaySubtasks]);
+
+  const completedTodaySubtasks = useMemo(() => {
+    return todaySubtasks
+      .filter(item => item.subtask.completed)
+      .sort((a, b) => {
+        if (!a.subtask.completionDate) return 1;
+        if (!b.subtask.completionDate) return -1;
+        return new Date(a.subtask.completionDate).getTime() - new Date(b.subtask.completionDate).getTime();
+      });
+  }, [todaySubtasks]);
 
 
   const handleTagClick = (tag: string) => {
@@ -530,8 +546,11 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
   const onTodayDragStart = useCallback((item: TodayItem) => setDraggedTodayItem(item), []);
   
   const onTodayDrop = useCallback((targetItem: TodayItem) => {
-    if (!draggedTodayItem) return;
-
+    if (!draggedTodayItem || draggedTodayItem.subtask.completed || targetItem.subtask.completed) {
+      setDraggedTodayItem(null);
+      return;
+    }
+    
     const fromId = draggedTodayItem.subtask.id;
     const toId = targetItem.subtask.id;
     
@@ -1047,28 +1066,54 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
 
             {view === 'today' && (
                  <>
-                    {sortedTodaySubtasks.length > 0 ? (
-                        sortedTodaySubtasks.map((item, index) => (
-                           <TodaySubtaskItem
-                            key={item.subtask.id}
-                            item={{ subtask: item.subtask, parentTaskTitle: item.parentTask.title }}
-                            onToggleComplete={() => handleToggleTodaySubtaskComplete(item.subtask.id, item.parentTask.id)}
-                            onRemove={() => handleUnsetSubtaskDueDate(item.subtask.id, item.parentTask.id)}
-                            onDragStart={() => onTodayDragStart(item)}
-                            onDragOver={onDragOver}
-                            onDrop={() => onTodayDrop(item)}
-                            isDragging={draggedTodayItem?.subtask.id === item.subtask.id}
-                            onMoveSubtask={handleMoveTodaySubtask}
-                            subtaskIndex={index}
-                            totalSubtasks={sortedTodaySubtasks.length}
-                           />
-                        ))
-                    ) : (
+                    {incompleteTodaySubtasks.length > 0 && (
+                        <div>
+                            <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 px-1 pt-2 mb-2">To Do</h3>
+                            {incompleteTodaySubtasks.map((item, index) => (
+                                <TodaySubtaskItem
+                                    key={item.subtask.id}
+                                    item={{ subtask: item.subtask, parentTaskTitle: item.parentTask.title }}
+                                    onToggleComplete={() => handleToggleTodaySubtaskComplete(item.subtask.id, item.parentTask.id)}
+                                    onRemove={() => handleUnsetSubtaskDueDate(item.subtask.id, item.parentTask.id)}
+                                    onDragStart={() => onTodayDragStart(item)}
+                                    onDragOver={onDragOver}
+                                    onDrop={() => onTodayDrop(item)}
+                                    isDragging={draggedTodayItem?.subtask.id === item.subtask.id}
+                                    onMoveSubtask={handleMoveTodaySubtask}
+                                    subtaskIndex={index}
+                                    totalSubtasks={incompleteTodaySubtasks.length}
+                                />
+                            ))}
+                        </div>
+                    )}
+                    
+                    {completedTodaySubtasks.length > 0 && (
+                       <div className="mt-8">
+                            <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 px-1 pt-2 mb-2">Completed</h3>
+                            {completedTodaySubtasks.map((item, index) => (
+                                <TodaySubtaskItem
+                                    key={item.subtask.id}
+                                    item={{ subtask: item.subtask, parentTaskTitle: item.parentTask.title }}
+                                    onToggleComplete={() => handleToggleTodaySubtaskComplete(item.subtask.id, item.parentTask.id)}
+                                    onRemove={() => handleUnsetSubtaskDueDate(item.subtask.id, item.parentTask.id)}
+                                    onDragStart={(e) => e.preventDefault()}
+                                    onDragOver={(e) => e.preventDefault()}
+                                    onDrop={(e) => e.preventDefault()}
+                                    isDragging={false}
+                                    onMoveSubtask={() => {}}
+                                    subtaskIndex={index}
+                                    totalSubtasks={completedTodaySubtasks.length}
+                                />
+                            ))}
+                        </div>
+                    )}
+
+                    {todaySubtasks.length === 0 ? (
                         <div className="text-center py-10 px-4">
                             <h2 className="text-xl sm:text-2xl font-semibold text-gray-400 dark:text-gray-500">Nothing scheduled for today.</h2>
                             <p className="text-gray-500 dark:text-gray-600 mt-2">Go to the backlog and assign a due date to your sub-tasks.</p>
                         </div>
-                    )}
+                    ) : null}
                 </>
             )}
 
