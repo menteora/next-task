@@ -5,6 +5,7 @@ import SubtaskModal from './components/SubtaskModal';
 import TodaySubtaskItem from './components/TodaySubtaskItem';
 import StatsView from './components/StatsView';
 import SettingsView from './components/SettingsView';
+import ConfirmationModal from './components/ConfirmationModal';
 import { createSupabaseClient } from './supabaseClient';
 import { PlusIcon, SunIcon, MoonIcon, ListIcon, CalendarIcon, BarChartIcon, ArrowsPointingInIcon, ArrowsPointingOutIcon, DownloadIcon, UploadIcon, SettingsIcon, CloudUploadIcon, CloudDownloadIcon, SpinnerIcon, LogOutIcon, ArchiveIcon, SnoozeIcon } from './components/icons';
 import { Session } from '@supabase/supabase-js';
@@ -23,6 +24,15 @@ interface SupabaseConfig {
 interface StatusMessage {
   type: 'success' | 'error';
   text: string;
+}
+
+interface ConfirmationState {
+  isOpen: boolean;
+  title: string;
+  message: string;
+  confirmText: string;
+  confirmClass: string;
+  onConfirm: () => void;
 }
 
 
@@ -105,6 +115,16 @@ const App: React.FC = () => {
   const [supabaseAction, setSupabaseAction] = useState<SupabaseAction | null>(null);
   const [isSupabaseLoading, setIsSupabaseLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<StatusMessage | null>(null);
+
+  // Confirmation Modal State
+  const [confirmationState, setConfirmationState] = useState<ConfirmationState>({
+    isOpen: false,
+    title: '',
+    message: '',
+    confirmText: 'Confirm',
+    confirmClass: 'bg-cyan-600 hover:bg-cyan-700',
+    onConfirm: () => {},
+  });
 
 
   useEffect(() => {
@@ -267,9 +287,28 @@ const App: React.FC = () => {
     }
   };
 
+  const closeConfirmationModal = () => {
+    setConfirmationState(prev => ({ ...prev, isOpen: false }));
+  };
+
   const handleDeleteTask = useCallback((taskId: string) => {
     setTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
   }, []);
+
+  const requestDeleteTask = useCallback((taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    setConfirmationState({
+        isOpen: true,
+        title: 'Confirm Deletion',
+        message: `Are you sure you want to delete the task "${task?.title || ''}"? This action cannot be undone.`,
+        confirmText: 'Delete',
+        confirmClass: 'bg-red-600 hover:bg-red-700',
+        onConfirm: () => {
+            handleDeleteTask(taskId);
+            closeConfirmationModal();
+        },
+    });
+  }, [tasks, handleDeleteTask]);
 
   const handleUpdateTask = useCallback((updatedTask: Task) => {
     setTasks(prevTasks => prevTasks.map(task => task.id === updatedTask.id ? updatedTask : task));
@@ -644,6 +683,20 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
           setIsPasswordModalOpen(true);
       }
   };
+
+  const requestSupabaseImport = () => {
+    setConfirmationState({
+      isOpen: true,
+      title: 'Confirm Import from Cloud',
+      message: 'This will overwrite all your local tasks with the latest version from the cloud. Are you sure you want to continue?',
+      confirmText: 'Import & Overwrite',
+      confirmClass: 'bg-cyan-600 hover:bg-cyan-700',
+      onConfirm: () => {
+        triggerSupabaseAction('import');
+        closeConfirmationModal();
+      },
+    });
+  };
   
   const handleLogout = async () => {
     if (!supabaseConfig) return;
@@ -681,7 +734,7 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
                     </button>
                 )}
                 <button
-                    onClick={() => triggerSupabaseAction('import')}
+                    onClick={requestSupabaseImport}
                     className="p-2 rounded-full bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
                     aria-label="Import from Supabase"
                     title="Import from Supabase"
@@ -895,7 +948,7 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
                         <TaskItem
                             key={task.id}
                             task={task}
-                            onDelete={handleDeleteTask}
+                            onDelete={requestDeleteTask}
                             onUpdate={handleUpdateTask}
                             onOpenSubtaskModal={handleOpenSubtaskModal}
                             onDragStart={onDragStart}
@@ -933,7 +986,7 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
                          <TaskItem
                             key={task.id}
                             task={task}
-                            onDelete={handleDeleteTask}
+                            onDelete={requestDeleteTask}
                             onUpdate={handleUpdateTask}
                             onOpenSubtaskModal={handleOpenSubtaskModal}
                             onDragStart={() => {}}
@@ -966,7 +1019,7 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
                          <TaskItem
                             key={task.id}
                             task={task}
-                            onDelete={handleDeleteTask}
+                            onDelete={requestDeleteTask}
                             onUpdate={handleUpdateTask}
                             onOpenSubtaskModal={handleOpenSubtaskModal}
                             onDragStart={() => {}}
@@ -1060,6 +1113,15 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
           </div>
         </div>
       )}
+      <ConfirmationModal
+        isOpen={confirmationState.isOpen}
+        onClose={closeConfirmationModal}
+        onConfirm={confirmationState.onConfirm}
+        title={confirmationState.title}
+        message={confirmationState.message}
+        confirmButtonText={confirmationState.confirmText}
+        confirmButtonClass={confirmationState.confirmClass}
+      />
     </div>
   );
 };
