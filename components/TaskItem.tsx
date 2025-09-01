@@ -279,20 +279,18 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
         </div>
       </div>
 
-       {task.snoozeUntil && !task.completed && (
+       {task.snoozeUntil && !task.completed && onUnsnoozeTask && (
         <div className="mt-3 p-2 bg-yellow-100 dark:bg-yellow-900/50 rounded-md flex items-center justify-between">
           <p className="text-sm text-yellow-800 dark:text-yellow-300 flex items-center">
             <SnoozeIcon className="h-4 w-4 inline mr-2" />
             Snoozed until: {new Date(task.snoozeUntil + 'T00:00:00').toLocaleDateString()}
           </p>
-          {onUnsnoozeTask && (
-            <button
-              onClick={() => onUnsnoozeTask(task.id)}
-              className="text-xs font-semibold bg-yellow-200 dark:bg-yellow-800/60 text-yellow-800 dark:text-yellow-200 hover:bg-yellow-300 dark:hover:bg-yellow-700/60 px-2 py-1 rounded-md transition-colors"
-            >
-              Unsnooze
-            </button>
-          )}
+          <button
+            onClick={() => onUnsnoozeTask(task.id)}
+            className="text-xs font-semibold bg-yellow-200 dark:bg-yellow-800/60 text-yellow-800 dark:text-yellow-200 hover:bg-yellow-300 dark:hover:bg-yellow-700/60 px-2 py-1 rounded-md transition-colors"
+          >
+            Unsnooze
+          </button>
         </div>
       )}
       
