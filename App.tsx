@@ -7,13 +7,15 @@ import StatsView from './components/StatsView';
 import SettingsView from './components/SettingsView';
 import ConfirmationModal from './components/ConfirmationModal';
 import { createSupabaseClient } from './supabaseClient';
-import { PlusIcon, SunIcon, MoonIcon, ListIcon, CalendarIcon, BarChartIcon, ArrowsPointingInIcon, ArrowsPointingOutIcon, DownloadIcon, UploadIcon, SettingsIcon, CloudUploadIcon, CloudDownloadIcon, SpinnerIcon, LogOutIcon, ArchiveIcon, SnoozeIcon } from './components/icons';
+import { PlusIcon, SunIcon, MoonIcon, ListIcon, CalendarIcon, BarChartIcon, ArrowsPointingInIcon, ArrowsPointingOutIcon, DownloadIcon, UploadIcon, SettingsIcon, CloudUploadIcon, CloudDownloadIcon, SpinnerIcon, LogOutIcon, ArchiveIcon, SnoozeIcon, ChevronDownIcon } from './components/icons';
 import { Session } from '@supabase/supabase-js';
 
 type TodayItem = { subtask: Subtask, parentTask: Task };
 type Theme = 'light' | 'dark';
 type View = 'backlog' | 'today' | 'snoozed' | 'archive' | 'stats' | 'settings';
 type SupabaseAction = 'import' | 'export';
+type SortOption = 'manual' | 'days_passed';
+
 
 interface SupabaseConfig {
   url: string;
@@ -106,6 +108,7 @@ const App: React.FC = () => {
     return savedTags ? JSON.parse(savedTags) : [];
   });
   const [isCompactView, setIsCompactView] = useState(false);
+  const [sortOption, setSortOption] = useState<SortOption>('manual');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Supabase state
@@ -194,23 +197,64 @@ const App: React.FC = () => {
   const handleAddTagToDescription = (tag: string, setter: React.Dispatch<React.SetStateAction<string>>) => {
     setter(prev => `${prev.trim()} ${tag}`.trim());
   };
+  
+  const calculateLastTouchedDaysAgo = (task: Task): number | null => {
+    const completedSubtasks = task.subtasks.filter(st => st.completed && st.completionDate);
+    if (completedSubtasks.length === 0) {
+      return null;
+    }
 
-  const filteredTasks = useMemo(() => {
+    const lastCompletionDate = new Date(
+      Math.max(
+        ...completedSubtasks.map(st => new Date(st.completionDate!).getTime())
+      )
+    );
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    lastCompletionDate.setHours(0, 0, 0, 0);
+    
+    const diffTime = today.getTime() - lastCompletionDate.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    return diffDays;
+  };
+
+  const sortedAndFilteredTasks = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const activeTasks = tasks.filter(task => 
+    let activeTasks = tasks.filter(task => 
       !task.completed &&
       (!task.snoozeUntil || new Date(task.snoozeUntil) <= today)
     );
-    if (selectedTags.length === 0) {
-        return activeTasks;
+
+    if (selectedTags.length > 0) {
+        activeTasks = activeTasks.filter(task => {
+            const taskTags = extractTags(task.description);
+            return selectedTags.every(selectedTag => taskTags.includes(selectedTag));
+        });
     }
-    return activeTasks.filter(task => {
-        const taskTags = extractTags(task.description);
-        return selectedTags.every(selectedTag => taskTags.includes(selectedTag));
-    });
-  }, [tasks, selectedTags]);
+
+    if (sortOption === 'days_passed') {
+        activeTasks.sort((a, b) => {
+            const daysA = calculateLastTouchedDaysAgo(a);
+            const daysB = calculateLastTouchedDaysAgo(b);
+
+            const aIsEmpty = daysA === null;
+            const bIsEmpty = daysB === null;
+
+            if (aIsEmpty && bIsEmpty) return 0;
+            if (aIsEmpty) return -1; // Prioritize empty 'a'
+            if (bIsEmpty) return 1; // Prioritize empty 'b'
+            
+            // Neither is empty, sort by days descending
+            return daysB - daysA;
+        });
+    }
+
+    return activeTasks;
+  }, [tasks, selectedTags, sortOption]);
 
   const snoozedTasks = useMemo(() => {
     const today = new Date();
@@ -454,14 +498,14 @@ const App: React.FC = () => {
         } else if (direction === 'bottom') {
             reorderedActiveTasks = [...activeTasks.filter(t => t.id !== taskId), taskToMove];
         } else {
-            const taskIndexInFiltered = filteredTasks.findIndex(t => t.id === taskId);
+            const taskIndexInFiltered = sortedAndFilteredTasks.findIndex(t => t.id === taskId);
             if (taskIndexInFiltered === -1) return currentTasks;
 
             let targetTask: Task | undefined;
             if (direction === 'up' && taskIndexInFiltered > 0) {
-                targetTask = filteredTasks[taskIndexInFiltered - 1];
-            } else if (direction === 'down' && taskIndexInFiltered < filteredTasks.length - 1) {
-                targetTask = filteredTasks[taskIndexInFiltered + 1];
+                targetTask = sortedAndFilteredTasks[taskIndexInFiltered - 1];
+            } else if (direction === 'down' && taskIndexInFiltered < sortedAndFilteredTasks.length - 1) {
+                targetTask = sortedAndFilteredTasks[taskIndexInFiltered + 1];
             }
 
             if (!targetTask) return currentTasks;
@@ -476,7 +520,7 @@ const App: React.FC = () => {
         
         return [...reorderedActiveTasks, ...completedTasks];
     });
-}, [filteredTasks]);
+}, [sortedAndFilteredTasks]);
 
 const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' | 'down' | 'top' | 'bottom') => {
     setTodayOrder(currentOrder => {
@@ -523,7 +567,7 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
 
   const onDrop = useCallback((e: React.DragEvent<HTMLDivElement>, targetTask: Task) => {
     e.preventDefault();
-    if (!draggedTask || view !== 'backlog' || draggedTask.completed || targetTask.completed) return;
+    if (!draggedTask || view !== 'backlog' || draggedTask.completed || targetTask.completed || sortOption !== 'manual') return;
 
     setTasks(currentTasks => {
         const activeTasks = currentTasks.filter(t => !t.completed);
@@ -541,7 +585,7 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
         return [...items, ...completedTasks];
     });
     setDraggedTask(null);
-  }, [draggedTask, view]);
+  }, [draggedTask, view, sortOption]);
   
   const onTodayDragStart = useCallback((item: TodayItem) => setDraggedTodayItem(item), []);
   
@@ -887,14 +931,32 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
                 )}
                 
                 {tasks.filter(t => !t.completed).length > 0 && (
-                    <button 
-                        onClick={() => setIsCompactView(!isCompactView)} 
-                        className="p-2 rounded-md bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors self-end sm:self-center"
-                        aria-label={isCompactView ? "Expand view" : "Compact view"}
-                        title={isCompactView ? "Expand view" : "Compact view"}
-                    >
-                        {isCompactView ? <ArrowsPointingOutIcon /> : <ArrowsPointingInIcon />}
-                    </button>
+                    <div className="flex items-center gap-2 self-end sm:self-center flex-shrink-0">
+                        <div className="relative">
+                            <select
+                                id="sort-order"
+                                value={sortOption}
+                                onChange={e => setSortOption(e.target.value as SortOption)}
+                                className="appearance-none bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-colors"
+                                aria-label="Sort tasks"
+                            >
+                                <option value="manual">Ordina: Manuale</option>
+                                <option value="days_passed">Ordina: Ultima azione</option>
+                            </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-300">
+                                <ChevronDownIcon className="h-4 w-4" />
+                            </div>
+                        </div>
+
+                        <button 
+                            onClick={() => setIsCompactView(!isCompactView)} 
+                            className="p-2.5 rounded-md bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                            aria-label={isCompactView ? "Expand view" : "Compact view"}
+                            title={isCompactView ? "Expand view" : "Compact view"}
+                        >
+                            {isCompactView ? <ArrowsPointingOutIcon /> : <ArrowsPointingInIcon />}
+                        </button>
+                    </div>
                 )}
             </div>
             <div className="mb-6 sm:mb-8">
@@ -963,7 +1025,7 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
           <div className="task-list">
              {view === 'backlog' && (
                 <>
-                    {filteredTasks.map((task, index) => (
+                    {sortedAndFilteredTasks.map((task, index) => (
                         <TaskItem
                             key={task.id}
                             task={task}
@@ -980,11 +1042,12 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
                             isCompactView={isCompactView}
                             onMoveTask={handleMoveTask}
                             taskIndex={index}
-                            totalTasks={filteredTasks.length}
+                            totalTasks={sortedAndFilteredTasks.length}
                             onSnoozeTask={handleSnoozeTask}
+                            isDraggable={sortOption === 'manual'}
                         />
                     ))}
-                    {tasks.filter(t => !t.completed).length > 0 && filteredTasks.length === 0 && (
+                    {tasks.filter(t => !t.completed).length > 0 && sortedAndFilteredTasks.length === 0 && (
                         <div className="text-center py-10 px-4">
                             <h2 className="text-xl sm:text-2xl font-semibold text-gray-400 dark:text-gray-500">No tasks match the selected filters.</h2>
                             <p className="text-gray-500 dark:text-gray-600 mt-2">Try adjusting or clearing your filters.</p>
@@ -1021,6 +1084,7 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
                             totalTasks={snoozedTasks.length}
                             onSnoozeTask={handleSnoozeTask}
                             onUnsnoozeTask={handleUnsnoozeTask}
+                            isDraggable={false}
                         />
                     ))}
                     {snoozedTasks.length === 0 && (
@@ -1053,6 +1117,7 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
                             taskIndex={index}
                             totalTasks={archivedTasks.length}
                             onSnoozeTask={handleSnoozeTask}
+                            isDraggable={false}
                         />
                     ))}
                     {archivedTasks.length === 0 && (
