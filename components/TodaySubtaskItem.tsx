@@ -1,6 +1,6 @@
 import React from 'react';
 import { Subtask } from '../types';
-import { TrashIcon, GripVerticalIcon, ChevronDoubleUpIcon, ChevronUpIcon, ChevronDownIcon, ChevronDoubleDownIcon, CloudOfflineIcon, AlertCircleIcon } from './icons';
+import { TrashIcon, GripVerticalIcon, ChevronDoubleUpIcon, ChevronUpIcon, ChevronDownIcon, ChevronDoubleDownIcon } from './icons';
 
 interface TodaySubtaskItemProps {
   item: {
@@ -45,18 +45,8 @@ const TodaySubtaskItem: React.FC<TodaySubtaskItemProps> = ({ item, onToggleCompl
           onChange={onToggleComplete}
         />
         <div className="ml-3 min-w-0">
-            <label htmlFor={`today-subtask-${subtask.id}`} className={`text-gray-700 dark:text-gray-200 cursor-pointer break-words flex items-center ${subtask.completed ? 'line-through text-gray-500 dark:text-gray-500' : ''}`}>
-                <span>{subtask.text}</span>
-                {subtask.syncStatus === 'pending' && (
-                    <span title="Changes not saved to cloud" className="inline-block ml-2 flex-shrink-0">
-                        <CloudOfflineIcon className="h-4 w-4 text-gray-400 dark:text-gray-500" />
-                    </span>
-                )}
-                {subtask.syncStatus === 'error' && (
-                    <span title="Error saving changes to cloud" className="inline-block ml-2 flex-shrink-0">
-                        <AlertCircleIcon className="h-4 w-4 text-red-500 dark:text-red-400" />
-                    </span>
-                )}
+            <label htmlFor={`today-subtask-${subtask.id}`} className={`text-gray-700 dark:text-gray-200 cursor-pointer break-words ${subtask.completed ? 'line-through text-gray-500 dark:text-gray-500' : ''}`}>
+                {subtask.text}
             </label>
              {subtask.completed && subtask.completionDate && (
                 <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
