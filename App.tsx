@@ -47,6 +47,13 @@ const App: React.FC = () => {
   const [theme, setTheme] = useState<Theme>('light');
   const [supabaseConfig, setSupabaseConfig] = useState<SupabaseConfig | null>(null);
 
+  const supabase = useMemo(() => {
+    if (supabaseConfig) {
+      return createSupabaseClient(supabaseConfig.url, supabaseConfig.anonKey);
+    }
+    return null;
+  }, [supabaseConfig]);
+
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDescription, setNewTaskDescription] = useState('');
   const [isNewTaskRecurring, setIsNewTaskRecurring] = useState(false);
@@ -192,7 +199,7 @@ const App: React.FC = () => {
 
   // Main data loading and sync trigger logic
   useEffect(() => {
-    if (!supabaseConfig) {
+    if (!supabase) {
       setStorageMode('local');
       const savedTasks = JSON.parse(localStorage.getItem('backlogTasks') || '[]') as Task[];
       setTasks(savedTasks.map(t => ({...t, syncStatus: 'local'})));
@@ -201,19 +208,17 @@ const App: React.FC = () => {
       return;
     }
 
-    const supabase = createSupabaseClient(supabaseConfig.url, supabaseConfig.anonKey);
     supabase.auth.getSession().then(({ data: { session } }) => setSupabaseSession(session));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => setSupabaseSession(session));
     return () => subscription.unsubscribe();
-  }, [supabaseConfig]);
+  }, [supabase]);
 
   useEffect(() => {
-    if (supabaseSession) {
+    if (supabaseSession && supabase) {
       setStorageMode('supabase');
-      const supabase = createSupabaseClient(supabaseConfig!.url, supabaseConfig!.anonKey);
       fetchDataFromSupabase(supabase, supabaseSession);
     }
-  }, [supabaseSession]);
+  }, [supabaseSession, supabase]);
   
   // Persist state based on storage mode
   useEffect(() => {
