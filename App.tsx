@@ -380,7 +380,22 @@ const App: React.FC = () => {
   }, [storageMode]);
 
   const handleUpdateTask = useCallback((updatedTask: Task) => {
-    const taskWithStatus = { ...updatedTask, syncStatus: storageMode === 'supabase' ? 'pending' : 'local' as SyncStatus };
+    // FIX: Explicitly type newSyncStatus as SyncStatus to prevent type widening to a generic string.
+    const newSyncStatus: SyncStatus = storageMode === 'supabase' ? 'pending' : 'local';
+
+    const correctedSubtasks = updatedTask.subtasks.map(subtask => {
+        if (storageMode === 'local' && (subtask.syncStatus === 'pending' || subtask.syncStatus === 'error')) {
+            return { ...subtask, syncStatus: 'local' as const };
+        }
+        return subtask;
+    });
+
+    const taskWithStatus = { 
+        ...updatedTask, 
+        subtasks: correctedSubtasks,
+        syncStatus: newSyncStatus,
+    };
+    
     setTasks(prev => prev.map(task => task.id === taskWithStatus.id ? taskWithStatus : task));
     if (storageMode === 'supabase') addToSyncQueue({ type: 'upsert_task', payload: { task: taskWithStatus } });
     if (modalTask && modalTask.id === updatedTask.id) setModalTask(taskWithStatus);
