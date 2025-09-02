@@ -78,30 +78,77 @@ const SettingsView: React.FC<SettingsViewProps> = ({ currentConfig, onSave }) =>
   };
 
   const sqlInstruction = `
--- 1. Create the table to store task revisions for each user.
+-- 1. Create a helper function to update 'updated_at' columns.
+CREATE OR REPLACE FUNCTION public.handle_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 2. Create the 'tasks' table.
 CREATE TABLE public.tasks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  data JSONB,
-  created_at TIMESTAMPTZ DEFAULT now()
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT,
+  recurring BOOLEAN DEFAULT false,
+  completed BOOLEAN DEFAULT false,
+  completion_date TIMESTAMPTZ,
+  snooze_until DATE,
+  "order" INTEGER, -- 'order' is a reserved keyword, so it needs quotes.
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
 );
+-- Add trigger for 'updated_at' on tasks
+CREATE TRIGGER on_tasks_updated
+  BEFORE UPDATE ON public.tasks
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.handle_updated_at();
 
--- Optional but recommended: Add an index for faster lookups of the latest revision.
-CREATE INDEX ON public.tasks (user_id, created_at DESC);
+-- 3. Create the 'subtasks' table.
+CREATE TABLE public.subtasks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  task_id UUID REFERENCES public.tasks(id) ON DELETE CASCADE NOT NULL,
+  text TEXT NOT NULL,
+  completed BOOLEAN DEFAULT false,
+  due_date DATE,
+  is_instance BOOLEAN DEFAULT false,
+  completion_date TIMESTAMPTZ,
+  "order" INTEGER, -- Position within the task.
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+-- Add trigger for 'updated_at' on subtasks
+CREATE TRIGGER on_subtasks_updated
+  BEFORE UPDATE ON public.subtasks
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.handle_updated_at();
 
--- 2. Enable Row Level Security (RLS) on the table.
--- This is crucial for data privacy.
+-- 4. Enable Row Level Security (RLS) for both tables.
 ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.subtasks ENABLE ROW LEVEL SECURITY;
 
--- 3. Create a policy that allows users to manage their own task revisions.
--- A user can only see, create, update, or delete their own revisions.
+-- 5. Create policies to allow users to manage their own data.
+-- Policies for 'tasks' table
 CREATE POLICY "Allow users to manage their own tasks"
-ON public.tasks
-FOR ALL
-USING (auth.uid() = user_id)
-WITH CHECK (auth.uid() = user_id);
+  ON public.tasks FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
 
--- 4. Create a user account in your Supabase project.
+-- Policies for 'subtasks' table
+CREATE POLICY "Allow users to manage their own subtasks"
+  ON public.subtasks FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+-- 6. Recommended: Add indexes for performance.
+CREATE INDEX ON public.tasks (user_id, "order");
+CREATE INDEX ON public.subtasks (task_id, "order");
+
+-- 7. Create a user account in your Supabase project.
 -- Go to Authentication -> Users and click "Add user".
 -- Use the email and password from that account in this app's settings.
   `.trim();
@@ -185,7 +232,7 @@ WITH CHECK (auth.uid() = user_id);
         <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Table Setup</h2>
         <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md">
           <p className="text-gray-600 dark:text-gray-300 mb-4">
-            In your Supabase project, go to the SQL Editor and run the following commands to set up revision history.
+            In your Supabase project, go to the SQL Editor and run the following commands to set up the database tables.
           </p>
           <pre className="bg-gray-100 dark:bg-gray-900/50 p-4 rounded-md text-sm text-gray-800 dark:text-gray-200 overflow-x-auto">
             <code>
