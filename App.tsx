@@ -166,6 +166,73 @@ const App: React.FC = () => {
     setIsSyncing(false);
 }, [isSyncing]);
 
+  const fetchDataFromSupabase = useCallback(async (supabase: SupabaseClient, session: Session) => {
+    // 1. Check for local data that might need migrating.
+    const localTasksJSON = localStorage.getItem('backlogTasks');
+    const localTasks: Task[] = localTasksJSON ? JSON.parse(localTasksJSON) : [];
+
+    // 2. Fetch remote data to see if the database is empty.
+    const { data: remoteTaskData, error: taskError } = await supabase.from('tasks').select('id').eq('user_id', session.user.id);
+
+    if (taskError) {
+      setStatusMessage({type: 'error', text: taskError.message || "Failed to fetch data"});
+      setIsLoading(false);
+      return;
+    }
+
+    // 3. Decide whether to migrate local data or fetch remote data.
+    if (remoteTaskData.length === 0 && localTasks.length > 0) {
+      // SCENARIO: First-time sync. Migrate local data to Supabase.
+      setStatusMessage({ type: 'success', text: 'Local data found. Uploading to cloud...' });
+      
+      const tasksToSync = localTasks.map(t => ({
+        ...t,
+        syncStatus: 'pending' as const,
+        subtasks: t.subtasks.map(st => ({ ...st, syncStatus: 'pending' as const }))
+      }));
+      
+      const syncOperations: SyncOperation[] = tasksToSync.map(task => ({
+        type: 'upsert_task', payload: { task }
+      }));
+
+      setTasks(tasksToSync);
+      saveSyncQueue(syncOperations);
+      
+      // IMPORTANT: Remove the local data after queueing to prevent re-migration.
+      localStorage.removeItem('backlogTasks');
+      
+      await processSyncQueue(supabase, session);
+      setIsLoading(false);
+    } else {
+      // SCENARIO: Normal operation. Fetch all data from the server.
+      const { data: taskData, error: taskError } = await supabase.from('tasks').select('*').eq('user_id', session.user.id);
+      const { data: subtaskData, error: subtaskError } = await supabase.from('subtasks').select('*').eq('user_id', session.user.id);
+      
+      if (taskError || subtaskError) {
+        setStatusMessage({type: 'error', text: taskError?.message || subtaskError?.message || "Failed to fetch data"});
+        setIsLoading(false);
+        return;
+      }
+
+      const subtaskMap = new Map<string, Subtask[]>();
+      subtaskData.forEach(st => {
+        const entry = subtaskMap.get(st.task_id) || [];
+        entry.push({ ...st, syncStatus: 'synced' });
+        subtaskMap.set(st.task_id, entry);
+      });
+
+      const serverTasks = taskData.map(t => ({
+        ...t,
+        subtasks: (subtaskMap.get(t.id) || []).sort((a,b) => (a as any).order - (b as any).order),
+        syncStatus: 'synced' as SyncStatus,
+      })).sort((a,b) => (a as any).order - (b as any).order);
+
+      setTasks(serverTasks);
+      await processSyncQueue(supabase, session); // Process any pending changes from offline.
+      setIsLoading(false);
+    }
+  }, [processSyncQueue]);
+
 
   // Effect for non-data settings
   useEffect(() => {
@@ -180,28 +247,26 @@ const App: React.FC = () => {
     if (savedView) setView(savedView);
   }, []);
   
-  // App initialization and data loading logic
+  // Single initialization effect
   useEffect(() => {
-    const savedConfig = localStorage.getItem('supabaseConfig');
-    if (savedConfig) {
-      setSupabaseConfig(JSON.parse(savedConfig));
-      setStorageMode('supabase');
-    } else {
-      setStorageMode('local');
-      setIsLoading(false); // Done loading for local mode
-    }
-  }, []);
-
-  // Effect to load local data when in local mode
-  useEffect(() => {
-    if (storageMode === 'local') {
+    const initializeApp = () => {
+      const savedConfig = localStorage.getItem('supabaseConfig');
+      if (savedConfig) {
+        setSupabaseConfig(JSON.parse(savedConfig));
+        setStorageMode('supabase');
+        // Supabase auth listener will handle data fetching and isLoading state.
+      } else {
+        // Pure local mode.
+        setStorageMode('local');
         const savedTasks = JSON.parse(localStorage.getItem('backlogTasks') || '[]') as Task[];
         setTasks(savedTasks.map(t => ({...t, syncStatus: 'local'})));
         const savedOrder = localStorage.getItem('todayOrder');
         setTodayOrder(savedOrder ? JSON.parse(savedOrder) : []);
-    }
-  }, [storageMode]);
-
+        setIsLoading(false);
+      }
+    };
+    initializeApp();
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('selectedTags', JSON.stringify(selectedTags));
@@ -217,7 +282,7 @@ const App: React.FC = () => {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  // Supabase auth and data fetching logic
+  // Supabase auth listener
   useEffect(() => {
     if (storageMode !== 'supabase' || !supabase) return;
 
@@ -231,47 +296,15 @@ const App: React.FC = () => {
     });
 
     return () => subscription.unsubscribe();
-  }, [storageMode, supabase]);
+  }, [storageMode, supabase, fetchDataFromSupabase]);
   
-  // Persist state based on storage mode
+  // Persist state to localStorage only when in local mode
   useEffect(() => {
-    if (storageMode === 'local') {
+    if (storageMode === 'local' && !isLoading) {
       localStorage.setItem('backlogTasks', JSON.stringify(tasks));
       localStorage.setItem('todayOrder', JSON.stringify(todayOrder));
     }
-  }, [tasks, todayOrder, storageMode]);
-
-  const fetchDataFromSupabase = async (supabase: SupabaseClient, session: Session) => {
-    setIsLoading(true);
-    const { data: taskData, error: taskError } = await supabase.from('tasks').select('*').eq('user_id', session.user.id);
-    const { data: subtaskData, error: subtaskError } = await supabase.from('subtasks').select('*').eq('user_id', session.user.id);
-    
-    if (taskError || subtaskError) {
-      setStatusMessage({type: 'error', text: taskError?.message || subtaskError?.message || "Failed to fetch data"});
-      setIsLoading(false);
-      return;
-    }
-
-    const subtaskMap = new Map<string, Subtask[]>();
-    subtaskData.forEach(st => {
-      const entry = subtaskMap.get(st.task_id) || [];
-      entry.push({ ...st, syncStatus: 'synced' });
-      subtaskMap.set(st.task_id, entry);
-    });
-
-    const serverTasks = taskData.map(t => ({
-      ...t,
-      subtasks: (subtaskMap.get(t.id) || []).sort((a,b) => (a as any).order - (b as any).order),
-      syncStatus: 'synced' as SyncStatus,
-    })).sort((a,b) => (a as any).order - (b as any).order);
-
-    setTasks(serverTasks);
-    // Here one could apply local queue changes on top of server data if needed
-    setIsLoading(false);
-
-    // After fetching, try to process any pending changes
-    await processSyncQueue(supabase, session);
-  };
+  }, [tasks, todayOrder, storageMode, isLoading]);
   
   const getTodayDateString = () => new Date().toISOString().split('T')[0];
 
