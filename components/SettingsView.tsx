@@ -1,5 +1,4 @@
 import React, { useState, useRef } from 'react';
-import { SpinnerIcon } from './icons';
 
 interface SupabaseConfig {
   url: string;
@@ -10,12 +9,9 @@ interface SupabaseConfig {
 interface SettingsViewProps {
   currentConfig: SupabaseConfig | null;
   onSave: (config: SupabaseConfig) => void;
-  isSyncEnabled: boolean;
-  onToggleSync: (enabled: boolean) => void;
-  isSupabaseLoading: boolean;
 }
 
-const SettingsView: React.FC<SettingsViewProps> = ({ currentConfig, onSave, isSyncEnabled, onToggleSync, isSupabaseLoading }) => {
+const SettingsView: React.FC<SettingsViewProps> = ({ currentConfig, onSave }) => {
   const [url, setUrl] = useState(currentConfig?.url || '');
   const [anonKey, setAnonKey] = useState(currentConfig?.anonKey || '');
   const [email, setEmail] = useState(currentConfig?.email || '');
@@ -82,92 +78,36 @@ const SettingsView: React.FC<SettingsViewProps> = ({ currentConfig, onSave, isSy
   };
 
   const sqlInstruction = `
--- This table stores your Backlog data.
--- It can store both a single "live" record for real-time syncing,
--- and multiple historical "backup" records from manual exports.
-
--- 1. Create the table.
-CREATE TABLE public.backlog_data (
+-- 1. Create the table to store task revisions for each user.
+CREATE TABLE public.tasks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   data JSONB,
-  is_live_data BOOLEAN NOT NULL DEFAULT false,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- Create a function to automatically update the 'updated_at' timestamp.
-CREATE OR REPLACE FUNCTION public.trigger_set_timestamp()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+-- Optional but recommended: Add an index for faster lookups of the latest revision.
+CREATE INDEX ON public.tasks (user_id, created_at DESC);
 
--- Create a trigger to call the function before any update.
-CREATE TRIGGER set_timestamp
-BEFORE UPDATE ON public.backlog_data
-FOR EACH ROW
-EXECUTE PROCEDURE public.trigger_set_timestamp();
+-- 2. Enable Row Level Security (RLS) on the table.
+-- This is crucial for data privacy.
+ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
 
-
--- 2. Add an index for faster lookups of backups.
-CREATE INDEX ON public.backlog_data (user_id, created_at DESC);
-
--- 3. Create a unique index to ensure only ONE live record per user.
--- This is the key to the live sync feature.
-CREATE UNIQUE INDEX backlog_data_user_id_is_live_data_true_idx
-ON public.backlog_data (user_id)
-WHERE (is_live_data = true);
-
--- 4. Enable Row Level Security (RLS) for data privacy.
-ALTER TABLE public.backlog_data ENABLE ROW LEVEL SECURITY;
-
--- 5. Create a policy that allows users to manage their own data.
-CREATE POLICY "Allow users to manage their own data"
-ON public.backlog_data
+-- 3. Create a policy that allows users to manage their own task revisions.
+-- A user can only see, create, update, or delete their own revisions.
+CREATE POLICY "Allow users to manage their own tasks"
+ON public.tasks
 FOR ALL
 USING (auth.uid() = user_id)
 WITH CHECK (auth.uid() = user_id);
 
--- 6. Create a user account in your Supabase project.
+-- 4. Create a user account in your Supabase project.
 -- Go to Authentication -> Users and click "Add user".
 -- Use the email and password from that account in this app's settings.
   `.trim();
 
   return (
     <div className="space-y-8 animate-fade-in-down">
-       <div>
-        <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Live Sync</h2>
-        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md">
-           <div className="flex justify-between items-center">
-             <div>
-                <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Enable Cloud Sync</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  Store and sync your tasks with Supabase in real-time.
-                </p>
-             </div>
-            <button
-                type="button"
-                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-cyan-600 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${isSyncEnabled ? 'bg-cyan-600' : 'bg-gray-200 dark:bg-gray-600'}`}
-                role="switch"
-                aria-checked={isSyncEnabled}
-                onClick={() => onToggleSync(!isSyncEnabled)}
-                disabled={!currentConfig || isSupabaseLoading}
-            >
-                <span className="sr-only">Use setting</span>
-                <span
-                aria-hidden="true"
-                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isSyncEnabled ? 'translate-x-5' : 'translate-x-0'}`}
-                />
-            </button>
-           </div>
-           {!currentConfig && (
-            <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-3">Please configure Supabase settings below to enable Live Sync.</p>
-           )}
-        </div>
-      </div>
       <div>
         <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Supabase Settings</h2>
         <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md space-y-4">
@@ -245,7 +185,7 @@ WITH CHECK (auth.uid() = user_id);
         <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Table Setup</h2>
         <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md">
           <p className="text-gray-600 dark:text-gray-300 mb-4">
-            In your Supabase project, go to the SQL Editor and run the following commands to set up the data table.
+            In your Supabase project, go to the SQL Editor and run the following commands to set up revision history.
           </p>
           <pre className="bg-gray-100 dark:bg-gray-900/50 p-4 rounded-md text-sm text-gray-800 dark:text-gray-200 overflow-x-auto">
             <code>
