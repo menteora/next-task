@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Task } from '../types';
-import { TrashIcon, ChevronDownIcon, GripVerticalIcon, EditIcon, CalendarPlusIcon, RepeatIcon, CalendarIcon, ChevronUpIcon, ChevronDoubleUpIcon, ChevronDoubleDownIcon, ClockIcon, SnoozeIcon } from './icons';
+import { TrashIcon, ChevronDownIcon, GripVerticalIcon, EditIcon, CalendarPlusIcon, RepeatIcon, CalendarIcon, ChevronUpIcon, ChevronDoubleUpIcon, ChevronDoubleDownIcon, ClockIcon, SnoozeIcon, CloudOfflineIcon, AlertCircleIcon } from './icons';
 
 interface TaskItemProps {
   task: Task;
@@ -202,6 +202,16 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
             ) : (
                 <div>
                     <div className="flex items-center flex-wrap gap-2 text-gray-700 dark:text-gray-300">
+                        {task.syncStatus === 'pending' && (
+                            <span title="Changes not saved to cloud">
+                                <CloudOfflineIcon className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                            </span>
+                        )}
+                         {task.syncStatus === 'error' && (
+                            <span title="Error saving changes to cloud">
+                                <AlertCircleIcon className="h-5 w-5 text-red-500 dark:text-red-400" />
+                            </span>
+                        )}
                         <h3 className={`font-bold text-lg text-cyan-600 dark:text-cyan-400 ${task.completed ? 'line-through' : ''}`}>{task.title}</h3>
                         {task.recurring && !task.completed && <RepeatIcon />}
                         {lastTouchedDaysAgo !== null && !task.completed && (

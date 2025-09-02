@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Task, Subtask } from '../types';
 import ConfirmationModal from './ConfirmationModal';
-import { TrashIcon, GripVerticalIcon, EditIcon, CalendarPlusIcon, CalendarIcon, ChevronDoubleUpIcon, ChevronUpIcon, ChevronDownIcon, ChevronDoubleDownIcon } from './icons';
+import { TrashIcon, GripVerticalIcon, EditIcon, CalendarPlusIcon, CalendarIcon, ChevronDoubleUpIcon, ChevronUpIcon, ChevronDownIcon, ChevronDoubleDownIcon, CloudOfflineIcon, AlertCircleIcon } from './icons';
 
 interface SubtaskModalProps {
   task: Task;
@@ -25,19 +25,20 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
         id: crypto.randomUUID(),
         text: newSubtaskText.trim(),
         completed: false,
+        syncStatus: 'pending',
       };
       const incomplete = task.subtasks.filter(st => !st.completed);
       const completed = task.subtasks.filter(st => st.completed);
       const updatedSubtasks = [...incomplete, newSubtask, ...completed];
 
-      onUpdateTask({ ...task, subtasks: updatedSubtasks });
+      onUpdateTask({ ...task, subtasks: updatedSubtasks, syncStatus: 'pending' });
       setNewSubtaskText('');
     }
   };
   
   const handleDeleteSubtask = (subtaskId: string) => {
       const updatedSubtasks = task.subtasks.filter(st => st.id !== subtaskId);
-      onUpdateTask({ ...task, subtasks: updatedSubtasks });
+      onUpdateTask({ ...task, subtasks: updatedSubtasks, syncStatus: 'pending' });
   };
   
   const handleToggleComplete = (subtaskId: string) => {
@@ -48,18 +49,19 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
           ...st,
           completed: isCompleted,
           completionDate: isCompleted ? new Date().toISOString() : undefined,
+          syncStatus: 'pending' as const,
         };
       }
       return st;
     });
-    onUpdateTask({ ...task, subtasks: updatedSubtasks });
+    onUpdateTask({ ...task, subtasks: updatedSubtasks, syncStatus: 'pending' });
   }
 
   const handleDateChange = (subtaskId: string, date: string) => {
     const updatedSubtasks = task.subtasks.map(st =>
-        st.id === subtaskId ? { ...st, dueDate: date || undefined } : st
+        st.id === subtaskId ? { ...st, dueDate: date || undefined, syncStatus: 'pending' as const } : st
     );
-    onUpdateTask({ ...task, subtasks: updatedSubtasks });
+    onUpdateTask({ ...task, subtasks: updatedSubtasks, syncStatus: 'pending' });
   };
 
   const handleStartEdit = (subtask: Subtask) => {
@@ -76,9 +78,9 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
     if (!editingSubtaskId) return;
     if (editingSubtaskText.trim()) {
         const updatedSubtasks = task.subtasks.map(st =>
-            st.id === editingSubtaskId ? { ...st, text: editingSubtaskText.trim() } : st
+            st.id === editingSubtaskId ? { ...st, text: editingSubtaskText.trim(), syncStatus: 'pending' as const } : st
         );
-        onUpdateTask({ ...task, subtasks: updatedSubtasks });
+        onUpdateTask({ ...task, subtasks: updatedSubtasks, syncStatus: 'pending' });
     }
     handleCancelEdit();
   };
@@ -107,7 +109,8 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
     }
 
     const completed = task.subtasks.filter(st => st.completed);
-    onUpdateTask({ ...task, subtasks: [...newIncompleteSubtasks, ...completed] });
+    const updatedSubtasks = [...newIncompleteSubtasks, ...completed].map(st => ({...st, syncStatus: 'pending' as const}));
+    onUpdateTask({ ...task, subtasks: updatedSubtasks, syncStatus: 'pending' });
   };
 
   const onDragStart = (e: React.DragEvent<HTMLLIElement>, subtask: Subtask) => {
@@ -135,8 +138,9 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
     incomplete.splice(toIndex, 0, reorderedItem);
     
     const completed = task.subtasks.filter(st => st.completed);
+    const updatedSubtasks = [...incomplete, ...completed].map(st => ({...st, syncStatus: 'pending' as const}));
 
-    onUpdateTask({ ...task, subtasks: [...incomplete, ...completed] });
+    onUpdateTask({ ...task, subtasks: updatedSubtasks, syncStatus: 'pending' });
   };
 
   const onDragEnd = () => {
@@ -206,6 +210,16 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
                                         <span className={'text-gray-700 dark:text-gray-200'}>
                                             {subtask.text}
                                         </span>
+                                        {subtask.syncStatus === 'pending' && (
+                                            <span title="Changes not saved to cloud" className="inline-block ml-2">
+                                                <CloudOfflineIcon className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                                            </span>
+                                        )}
+                                        {subtask.syncStatus === 'error' && (
+                                            <span title="Error saving changes to cloud" className="inline-block ml-2">
+                                                <AlertCircleIcon className="h-4 w-4 text-red-500 dark:text-red-400" />
+                                            </span>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -260,6 +274,16 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
                                     <span className="line-through text-gray-500 dark:text-gray-500">
                                         {subtask.text}
                                     </span>
+                                    {subtask.syncStatus === 'pending' && (
+                                        <span title="Changes not saved to cloud" className="inline-block ml-2">
+                                            <CloudOfflineIcon className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                                        </span>
+                                    )}
+                                    {subtask.syncStatus === 'error' && (
+                                        <span title="Error saving changes to cloud" className="inline-block ml-2">
+                                            <AlertCircleIcon className="h-4 w-4 text-red-500 dark:text-red-400" />
+                                        </span>
+                                    )}
                                     {subtask.completionDate && (
                                         <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
                                             (Completed: {new Date(subtask.completionDate).toLocaleDateString()})
