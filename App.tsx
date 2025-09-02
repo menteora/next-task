@@ -39,11 +39,21 @@ interface ConfirmationState {
 
 
 const App: React.FC = () => {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const [isSyncEnabled, setIsSyncEnabled] = useState<boolean>(() => {
-    return localStorage.getItem('isSyncEnabled') === 'true';
+  const [tasks, setTasks] = useState<Task[]>(() => {
+      const savedTasks = localStorage.getItem('backlogTasks');
+      if (savedTasks) {
+          try {
+              const parsedTasks = JSON.parse(savedTasks);
+              return parsedTasks.map((task: any) => ({
+                  ...task,
+                  completed: task.completed ?? false,
+              }));
+          } catch (e) {
+              console.error("Failed to parse tasks from localStorage", e);
+              return [];
+          }
+      }
+      return [];
   });
   
   const [todayOrder, setTodayOrder] = useState<string[]>(() => {
@@ -51,7 +61,25 @@ const App: React.FC = () => {
       return savedOrder ? JSON.parse(savedOrder) : [];
   });
 
-  const [view, setView] = useState<View>('backlog');
+  const [view, setView] = useState<View>(() => {
+    const savedTasks = localStorage.getItem('backlogTasks');
+    if (savedTasks) {
+        try {
+            const initialTasks: Task[] = JSON.parse(savedTasks);
+            const todayString = new Date().toISOString().split('T')[0];
+            const hasTodayTasks = initialTasks.some(task =>
+                task.subtasks?.some(subtask => subtask.dueDate === todayString)
+            );
+            if (hasTodayTasks) {
+                return 'today';
+            }
+        } catch (e) {
+            console.error("Error parsing tasks for initial view check", e);
+            return 'backlog';
+        }
+    }
+    return 'backlog';
+  });
 
   const [theme, setTheme] = useState<Theme>(() => {
     const savedTheme = localStorage.getItem('theme') as Theme;
@@ -82,9 +110,6 @@ const App: React.FC = () => {
   const [isCompactView, setIsCompactView] = useState(false);
   const [sortOption, setSortOption] = useState<SortOption>('manual');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const saveTimeoutRef = useRef<number | null>(null);
-  const [liveDataId, setLiveDataId] = useState<string | null>(null);
-
 
   // Supabase state
   const [supabaseSession, setSupabaseSession] = useState<Session | null>(null);
@@ -106,99 +131,8 @@ const App: React.FC = () => {
 
 
   useEffect(() => {
-    const loadInitialData = async () => {
-      setIsLoading(true);
-      if (isSyncEnabled && supabaseConfig && supabaseSession) {
-        const supabase = createSupabaseClient(supabaseConfig.url, supabaseConfig.anonKey);
-        const { data, error } = await supabase
-          .from('backlog_data')
-          .select('id, data')
-          .eq('user_id', supabaseSession.user.id)
-          .eq('is_live_data', true)
-          .single();
-
-        if (data?.data) {
-          setTasks(data.data as Task[]);
-          setLiveDataId(data.id);
-        } else {
-          setTasks([]);
-          setLiveDataId(null);
-        }
-        if (error && error.code !== 'PGRST116') {
-          setStatusMessage({ type: 'error', text: `Failed to load cloud data: ${error.message}` });
-        }
-      } else {
-        const savedTasks = localStorage.getItem('backlogTasks');
-        if (savedTasks) {
-          try {
-            setTasks(JSON.parse(savedTasks));
-          } catch (e) {
-            console.error("Failed to parse local tasks", e);
-            setTasks([]);
-          }
-        } else {
-          setTasks([]);
-        }
-      }
-      setIsLoading(false);
-    };
-
-    if (isSyncEnabled) {
-      if (supabaseSession) {
-        loadInitialData();
-      } else {
-        // if sync is enabled but there's no session, we wait.
-        // if config is present, a session will be attempted.
-        // if no config, we can't do anything, so we show loading.
-        if (!supabaseConfig) setIsLoading(false);
-      }
-    } else {
-      loadInitialData();
-    }
-  }, [isSyncEnabled, supabaseConfig, supabaseSession]);
-
-  useEffect(() => {
-    if (isLoading) return;
-
-    const saveToSupabase = async () => {
-      if (!supabaseConfig || !supabaseSession) return;
-      const supabase = createSupabaseClient(supabaseConfig.url, supabaseConfig.anonKey);
-      
-      setStatusMessage({type: 'success', text: 'Syncing...'});
-
-      if (liveDataId) {
-        const { error } = await supabase.from('backlog_data').update({ data: tasks }).eq('id', liveDataId);
-        if (error) {
-          setStatusMessage({ type: 'error', text: `Sync failed: ${error.message}` });
-        } else {
-          setTimeout(() => setStatusMessage(null), 2000);
-        }
-      } else { // First save, insert and get the new ID
-        const { data, error } = await supabase
-          .from('backlog_data')
-          .insert({ user_id: supabaseSession.user.id, data: tasks, is_live_data: true })
-          .select('id')
-          .single();
-        if (error) {
-          setStatusMessage({ type: 'error', text: `Sync failed: ${error.message}` });
-        } else if (data) {
-          setLiveDataId(data.id);
-          setTimeout(() => setStatusMessage(null), 2000);
-        }
-      }
-    };
-
-    if (isSyncEnabled) {
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-      saveTimeoutRef.current = window.setTimeout(saveToSupabase, 1500);
-    } else {
-      localStorage.setItem('backlogTasks', JSON.stringify(tasks));
-    }
-  }, [tasks, isSyncEnabled, supabaseConfig, supabaseSession, isLoading, liveDataId]);
-
-  useEffect(() => {
-    localStorage.setItem('isSyncEnabled', String(isSyncEnabled));
-  }, [isSyncEnabled]);
+    localStorage.setItem('backlogTasks', JSON.stringify(tasks));
+  }, [tasks]);
 
   useEffect(() => {
     localStorage.setItem('todayOrder', JSON.stringify(todayOrder));
@@ -230,19 +164,11 @@ const App: React.FC = () => {
 
       const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
         setSupabaseSession(session);
-        if(!session) {
-            setLiveDataId(null);
-            if (isSyncEnabled) {
-                setTasks([]);
-            }
-        }
       });
 
       return () => subscription.unsubscribe();
-    } else {
-        setSupabaseSession(null);
     }
-  }, [supabaseConfig, isSyncEnabled]);
+  }, [supabaseConfig]);
 
   const handleSaveSupabaseConfig = (config: SupabaseConfig) => {
     setSupabaseConfig(config);
@@ -756,29 +682,28 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
       
       if (action === 'export') {
         const { error } = await supabase
-          .from('backlog_data')
-          .insert({ user_id: session.user.id, data: tasks, is_live_data: false });
+          .from('tasks')
+          .insert({ user_id: session.user.id, data: tasks });
         if (error) {
             setStatusMessage({ type: 'error', text: `Export failed: ${error.message}` });
         } else {
-            setStatusMessage({ type: 'success', text: "New backup saved to Supabase!" });
+            setStatusMessage({ type: 'success', text: "New revision saved to Supabase!" });
         }
       } else if (action === 'import') {
         const { data, error } = await supabase
-          .from('backlog_data')
+          .from('tasks')
           .select('data')
           .eq('user_id', session.user.id)
-          .eq('is_live_data', false)
           .order('created_at', { ascending: false })
           .limit(1)
           .single();
 
         if (error || !data) {
-            setStatusMessage({ type: 'error', text: `Import failed: ${error?.message || 'No backup found.'}` });
+            setStatusMessage({ type: 'error', text: `Import failed: ${error?.message || 'No data found.'}` });
         } else if (data) {
             setTasks(data.data || []);
             setTodayOrder([]);
-            setStatusMessage({ type: 'success', text: "Latest backup successfully imported!" });
+            setStatusMessage({ type: 'success', text: "Latest revision successfully imported!" });
         }
       }
       
@@ -825,8 +750,8 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
   const requestSupabaseImport = () => {
     setConfirmationState({
       isOpen: true,
-      title: 'Confirm Import from Cloud Backup',
-      message: 'This will overwrite all your local tasks with the latest backup from the cloud. This will not affect your live sync data. Are you sure?',
+      title: 'Confirm Import from Cloud',
+      message: 'This will overwrite all your local tasks with the latest version from the cloud. Are you sure you want to continue?',
       confirmText: 'Import & Overwrite',
       confirmClass: 'bg-cyan-600 hover:bg-cyan-700',
       onConfirm: () => {
@@ -847,64 +772,6 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
     }
     setTimeout(() => setStatusMessage(null), 3000);
   }
-
-  const handleToggleSyncRequest = (enable: boolean) => {
-    if (enable) {
-      setConfirmationState({
-        isOpen: true,
-        title: 'Enable Live Sync?',
-        message: 'This will upload your current local tasks to Supabase. After that, this device will sync data directly with the cloud. Your local data will be removed. Proceed?',
-        confirmText: 'Enable & Upload',
-        confirmClass: 'bg-cyan-600 hover:bg-cyan-700',
-        onConfirm: async () => {
-          closeConfirmationModal();
-          if (!supabaseConfig || !supabaseSession) {
-            setStatusMessage({type: 'error', text: "Please configure Supabase and log in first."});
-            return;
-          }
-          setIsSupabaseLoading(true);
-          const localTasksStr = localStorage.getItem('backlogTasks');
-          const localTasks = localTasksStr ? JSON.parse(localTasksStr) : tasks;
-          
-          const supabase = createSupabaseClient(supabaseConfig.url, supabaseConfig.anonKey);
-          const { data, error } = await supabase.from('backlog_data').upsert({
-              user_id: supabaseSession.user.id,
-              data: localTasks,
-              is_live_data: true,
-          }, { onConflict: 'user_id' }).select('id').single();
-
-          if (error) {
-            setStatusMessage({ type: 'error', text: `Failed to enable sync: ${error.message}`});
-          } else if(data) {
-            setLiveDataId(data.id);
-            setIsSyncEnabled(true);
-            setTasks(localTasks);
-            localStorage.removeItem('backlogTasks');
-            setStatusMessage({type: 'success', text: "Live sync enabled!"});
-          }
-          setIsSupabaseLoading(false);
-        },
-      });
-    } else { // disable
-      setConfirmationState({
-        isOpen: true,
-        title: 'Disable Live Sync?',
-        message: 'This will download the latest cloud data to this device and stop syncing. Changes made on other devices will no longer be visible here. Proceed?',
-        confirmText: 'Disable & Download',
-        confirmClass: 'bg-red-600 hover:bg-red-700',
-        onConfirm: async () => {
-          closeConfirmationModal();
-          setIsSupabaseLoading(true);
-          // Fetch logic is already handled by the load effect when isSyncEnabled changes.
-          // We just need to set it to false, and the current `tasks` state will be saved to local storage by the other effect.
-          setIsSyncEnabled(false);
-          setStatusMessage({type: 'success', text: "Live sync disabled. Data saved locally."});
-          setIsSupabaseLoading(false);
-        },
-      });
-    }
-  };
-
 
   return (
     <div className="min-h-screen font-sans">
@@ -932,8 +799,8 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
                 <button
                     onClick={requestSupabaseImport}
                     className="p-2 rounded-full bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
-                    aria-label="Import from Supabase Backup"
-                    title="Import from Supabase Backup"
+                    aria-label="Import from Supabase"
+                    title="Import from Supabase"
                     disabled={isSupabaseLoading}
                 >
                     {isSupabaseLoading && supabaseAction === 'import' ? <SpinnerIcon/> : <CloudDownloadIcon />}
@@ -941,8 +808,8 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
                  <button
                     onClick={() => triggerSupabaseAction('export')}
                     className="p-2 rounded-full bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
-                    aria-label="Export to Supabase Backup"
-                    title="Export to Supabase Backup"
+                    aria-label="Export to Supabase"
+                    title="Export to Supabase"
                     disabled={isSupabaseLoading}
                 >
                     {isSupabaseLoading && supabaseAction === 'export' ? <SpinnerIcon/> : <CloudUploadIcon />}
@@ -1034,12 +901,6 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
         </div>
 
         <main>
-        {isLoading ? (
-            <div className="flex justify-center items-center h-64">
-                <SpinnerIcon className="h-12 w-12 text-cyan-500" />
-            </div>
-        ) : (
-          <>
           {view === 'backlog' && (
             <>
             <div className="flex flex-col sm:flex-row justify-between items-start mb-6 gap-4">
@@ -1322,10 +1183,8 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
             )}
 
             {view === 'stats' && <StatsView tasks={tasks} />}
-            {view === 'settings' && <SettingsView currentConfig={supabaseConfig} onSave={handleSaveSupabaseConfig} isSyncEnabled={isSyncEnabled} onToggleSync={handleToggleSyncRequest} isSupabaseLoading={isSupabaseLoading} />}
+            {view === 'settings' && <SettingsView currentConfig={supabaseConfig} onSave={handleSaveSupabaseConfig} />}
           </div>
-          </>
-        )}
         </main>
       </div>
       {modalTask && <SubtaskModal task={modalTask} onClose={handleCloseModal} onUpdateTask={handleUpdateTask} onSetSubtaskDueDate={handleSetSubtaskDueDate} />}
