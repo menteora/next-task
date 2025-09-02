@@ -1,5 +1,3 @@
-export type SyncStatus = 'synced' | 'pending' | 'error' | 'local';
-
 export interface Subtask {
   id: string;
   text: string;
@@ -7,7 +5,6 @@ export interface Subtask {
   dueDate?: string;
   isInstance?: boolean;
   completionDate?: string;
-  syncStatus?: SyncStatus;
 }
 
 export interface Task {
@@ -19,5 +16,4 @@ export interface Task {
   completed: boolean;
   completionDate?: string;
   snoozeUntil?: string;
-  syncStatus?: SyncStatus;
 }
