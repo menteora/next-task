@@ -20,9 +20,10 @@ interface TaskItemProps {
   totalTasks: number;
   onSnoozeTask: (taskId: string, duration: 'day' | 'week' | 'month') => void;
   onUnsnoozeTask?: (taskId: string) => void;
+  isDraggable: boolean;
 }
 
-const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSubtaskModal, onDragStart, onDragOver, onDrop, isDragging, onSetSubtaskDueDate, onToggleTaskComplete, allTags, isCompactView, onMoveTask, taskIndex, totalTasks, onSnoozeTask, onUnsnoozeTask }) => {
+const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSubtaskModal, onDragStart, onDragOver, onDrop, isDragging, onSetSubtaskDueDate, onToggleTaskComplete, allTags, isCompactView, onMoveTask, taskIndex, totalTasks, onSnoozeTask, onUnsnoozeTask, isDraggable }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editingTitle, setEditingTitle] = useState(task.title);
   const [editingDescription, setEditingDescription] = useState(task.description);
@@ -109,13 +110,13 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
   if (isCompactView) {
     return (
         <div
-          draggable={!task.completed}
+          draggable={isDraggable && !task.completed}
           onDragStart={(e) => onDragStart(e, task)}
           onDragOver={onDragOver}
           onDrop={(e) => onDrop(e, task)}
           className={`bg-white dark:bg-gray-800 p-2 rounded-lg shadow-md mb-2 flex items-center transition-all ${isDragging ? 'opacity-50' : 'opacity-100'} ${task.completed ? 'opacity-50 line-through' : ''}`}
         >
-          {!task.completed && (
+          {isDraggable && !task.completed && (
               <div className="cursor-grab p-1">
                   <GripVerticalIcon />
               </div>
@@ -130,7 +131,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
 
   return (
     <div
-      draggable={!isEditing && !task.completed}
+      draggable={isDraggable && !isEditing && !task.completed}
       onDragStart={(e) => onDragStart(e, task)}
       onDragOver={onDragOver}
       onDrop={(e) => onDrop(e, task)}
@@ -217,7 +218,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
             )}
          </div>
         <div className="flex items-center flex-wrap justify-end gap-2 flex-shrink-0 self-end sm:self-start mt-3 sm:mt-0">
-            {!task.completed && !isEditing && (
+            {isDraggable && !task.completed && !isEditing && (
               <>
                 <div className="cursor-grab p-1">
                     <GripVerticalIcon />
