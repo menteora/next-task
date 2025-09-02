@@ -69,7 +69,7 @@ const App: React.FC = () => {
 
   const [storageMode, setStorageMode] = useState<StorageMode>('local');
   const [supabaseSession, setSupabaseSession] = useState<Session | null>(null);
-  const [isSupabaseLoading, setIsSupabaseLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [statusMessage, setStatusMessage] = useState<StatusMessage | null>(null);
 
@@ -167,21 +167,41 @@ const App: React.FC = () => {
 }, [isSyncing]);
 
 
+  // Effect for non-data settings
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as Theme;
     if (savedTheme) setTheme(savedTheme);
     else if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) setTheme('dark');
-
-    const savedConfig = localStorage.getItem('supabaseConfig');
-    setSupabaseConfig(savedConfig ? JSON.parse(savedConfig) : null);
     
-    // Non-data view settings
     const savedTags = localStorage.getItem('selectedTags');
     setSelectedTags(savedTags ? JSON.parse(savedTags) : []);
     
     const savedView = localStorage.getItem('backlogView') as View;
     if (savedView) setView(savedView);
   }, []);
+  
+  // App initialization and data loading logic
+  useEffect(() => {
+    const savedConfig = localStorage.getItem('supabaseConfig');
+    if (savedConfig) {
+      setSupabaseConfig(JSON.parse(savedConfig));
+      setStorageMode('supabase');
+    } else {
+      setStorageMode('local');
+      setIsLoading(false); // Done loading for local mode
+    }
+  }, []);
+
+  // Effect to load local data when in local mode
+  useEffect(() => {
+    if (storageMode === 'local') {
+        const savedTasks = JSON.parse(localStorage.getItem('backlogTasks') || '[]') as Task[];
+        setTasks(savedTasks.map(t => ({...t, syncStatus: 'local'})));
+        const savedOrder = localStorage.getItem('todayOrder');
+        setTodayOrder(savedOrder ? JSON.parse(savedOrder) : []);
+    }
+  }, [storageMode]);
+
 
   useEffect(() => {
     localStorage.setItem('selectedTags', JSON.stringify(selectedTags));
@@ -197,28 +217,21 @@ const App: React.FC = () => {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  // Main data loading and sync trigger logic
+  // Supabase auth and data fetching logic
   useEffect(() => {
-    if (!supabase) {
-      setStorageMode('local');
-      const savedTasks = JSON.parse(localStorage.getItem('backlogTasks') || '[]') as Task[];
-      setTasks(savedTasks.map(t => ({...t, syncStatus: 'local'})));
-      const savedOrder = localStorage.getItem('todayOrder');
-      setTodayOrder(savedOrder ? JSON.parse(savedOrder) : []);
-      return;
-    }
+    if (storageMode !== 'supabase' || !supabase) return;
 
-    supabase.auth.getSession().then(({ data: { session } }) => setSupabaseSession(session));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => setSupabaseSession(session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        setSupabaseSession(session);
+        if (session) {
+            fetchDataFromSupabase(supabase, session);
+        } else {
+            setIsLoading(false); // No user, stop loading
+        }
+    });
+
     return () => subscription.unsubscribe();
-  }, [supabase]);
-
-  useEffect(() => {
-    if (supabaseSession && supabase) {
-      setStorageMode('supabase');
-      fetchDataFromSupabase(supabase, supabaseSession);
-    }
-  }, [supabaseSession, supabase]);
+  }, [storageMode, supabase]);
   
   // Persist state based on storage mode
   useEffect(() => {
@@ -229,13 +242,13 @@ const App: React.FC = () => {
   }, [tasks, todayOrder, storageMode]);
 
   const fetchDataFromSupabase = async (supabase: SupabaseClient, session: Session) => {
-    setIsSupabaseLoading(true);
+    setIsLoading(true);
     const { data: taskData, error: taskError } = await supabase.from('tasks').select('*').eq('user_id', session.user.id);
     const { data: subtaskData, error: subtaskError } = await supabase.from('subtasks').select('*').eq('user_id', session.user.id);
     
     if (taskError || subtaskError) {
       setStatusMessage({type: 'error', text: taskError?.message || subtaskError?.message || "Failed to fetch data"});
-      setIsSupabaseLoading(false);
+      setIsLoading(false);
       return;
     }
 
@@ -254,7 +267,7 @@ const App: React.FC = () => {
 
     setTasks(serverTasks);
     // Here one could apply local queue changes on top of server data if needed
-    setIsSupabaseLoading(false);
+    setIsLoading(false);
 
     // After fetching, try to process any pending changes
     await processSyncQueue(supabase, session);
@@ -554,7 +567,7 @@ const App: React.FC = () => {
             <p className="text-gray-500 dark:text-gray-400 mt-2 text-sm sm:text-base">Organize your work, focus on the next action.</p>
           </div>
           <div className="flex items-center space-x-1 sm:space-x-2 self-end sm:self-center mt-4 sm:mt-0 flex-shrink-0">
-            {isSupabaseLoading && <SpinnerIcon/>}
+            {isLoading && <SpinnerIcon/>}
             {supabaseConfig?.url && (
               <>
                 {supabaseSession && (
@@ -572,7 +585,7 @@ const App: React.FC = () => {
                     className="p-2 rounded-full bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
                     aria-label="Import from Supabase"
                     title="Import from Supabase"
-                    disabled={isSupabaseLoading}
+                    disabled={isLoading}
                 >
                     {isSyncing ? <SpinnerIcon/> : <CloudDownloadIcon />}
                 </button>
@@ -581,7 +594,7 @@ const App: React.FC = () => {
                     className="p-2 rounded-full bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
                     aria-label="Export to Supabase"
                     title="Export to Supabase"
-                    disabled={isSupabaseLoading}
+                    disabled={isLoading}
                 >
                     {isSyncing ? <SpinnerIcon/> : <CloudUploadIcon />}
                 </button>
@@ -637,47 +650,55 @@ const App: React.FC = () => {
         </div>
 
         <main>
-          {view === 'backlog' && (
-            <>
-            {/* Add Task Form & Filters */}
-            <div className="mb-6 sm:mb-8">
-                {isFormVisible ? (
-                <div className="bg-white dark:bg-gray-800 p-3 sm:p-4 rounded-lg shadow-lg animate-fade-in-down">
-                    <input type="text" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} placeholder="Task Title" className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-500 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-cyan-500"/>
-                    <textarea value={newTaskDescription} onChange={(e) => setNewTaskDescription(e.target.value)} placeholder="Description... use #tag to add tags" rows={3} className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-500 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-cyan-500" />
-                    <div className="flex justify-end space-x-2">
-                        <button onClick={() => setIsFormVisible(false)} className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md transition-colors">Cancel</button>
-                        <button onClick={handleAddTask} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md transition-colors">Add Task</button>
-                    </div>
-                </div>
-                ) : (
-                <button onClick={() => setIsFormVisible(true)} className="w-full flex items-center justify-center bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/80 border-2 border-dashed border-gray-300 dark:border-gray-700 hover:border-cyan-500 text-gray-500 dark:text-gray-400 hover:text-cyan-500 font-bold py-2 sm:py-3 px-4 rounded-lg transition-all duration-300">
-                    <PlusIcon /> <span className="ml-2">Add New Task</span>
-                </button>
-                )}
+        {isLoading ? (
+            <div className="flex justify-center items-center p-16">
+                <SpinnerIcon className="h-12 w-12 text-cyan-500" />
             </div>
-            </>
-          )}
-
-          <div className="task-list">
-             {view === 'backlog' && sortedAndFilteredTasks.map((task, index) => (
-                <TaskItem key={task.id} task={task} onDelete={requestDeleteTask} onUpdate={handleUpdateTask} onOpenSubtaskModal={handleOpenSubtaskModal} onDragStart={onDragStart} onDragOver={onDragOver} onDrop={onDrop} isDragging={draggedTask?.id === task.id} onSetSubtaskDueDate={handleSetSubtaskDueDate} onToggleTaskComplete={handleToggleTaskComplete} allTags={allTags} isCompactView={isCompactView} onMoveTask={handleMoveTask} taskIndex={index} totalTasks={sortedAndFilteredTasks.length} onSnoozeTask={handleSnoozeTask} isDraggable={sortOption === 'manual'} onUnsnoozeTask={handleUnsnoozeTask}/>
-            ))}
-            {view === 'snoozed' && snoozedTasks.map((task, index) => (
-                 <TaskItem key={task.id} task={task} onDelete={requestDeleteTask} onUpdate={handleUpdateTask} onOpenSubtaskModal={handleOpenSubtaskModal} onDragStart={() => {}} onDragOver={() => {}} onDrop={() => {}} isDragging={false} onSetSubtaskDueDate={handleSetSubtaskDueDate} onToggleTaskComplete={handleToggleTaskComplete} allTags={allTags} isCompactView={false} onMoveTask={() => {}} taskIndex={index} totalTasks={snoozedTasks.length} onSnoozeTask={handleSnoozeTask} onUnsnoozeTask={handleUnsnoozeTask} isDraggable={false}/>
-            ))}
-            {view === 'archive' && archivedTasks.map((task, index) => (
-                 <TaskItem key={task.id} task={task} onDelete={requestDeleteTask} onUpdate={handleUpdateTask} onOpenSubtaskModal={handleOpenSubtaskModal} onDragStart={() => {}} onDragOver={() => {}} onDrop={() => {}} isDragging={false} onSetSubtaskDueDate={handleSetSubtaskDueDate} onToggleTaskComplete={handleToggleTaskComplete} allTags={[]} isCompactView={false} onMoveTask={() => {}} taskIndex={index} totalTasks={archivedTasks.length} onSnoozeTask={handleSnoozeTask} isDraggable={false}/>
-            ))}
-            {view === 'today' && (
-                 <>
-                    {incompleteTodaySubtasks.map((item, index) => ( <TodaySubtaskItem key={item.subtask.id} item={{ subtask: item.subtask, parentTaskTitle: item.parentTask.title }} onToggleComplete={() => handleToggleTodaySubtaskComplete(item.subtask.id, item.parentTask.id)} onRemove={() => handleUnsetSubtaskDueDate(item.subtask.id, item.parentTask.id)} onDragStart={() => onTodayDragStart(item)} onDragOver={onDragOver} onDrop={() => onTodayDrop(item)} isDragging={draggedTodayItem?.subtask.id === item.subtask.id} onMoveSubtask={handleMoveTodaySubtask} subtaskIndex={index} totalSubtasks={incompleteTodaySubtasks.length} /> ))}
-                    {completedTodaySubtasks.length > 0 && <div className="mt-8"> <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 px-1 pt-2 mb-2">Completed</h3> {completedTodaySubtasks.map((item, index) => ( <TodaySubtaskItem key={item.subtask.id} item={{ subtask: item.subtask, parentTaskTitle: item.parentTask.title }} onToggleComplete={() => handleToggleTodaySubtaskComplete(item.subtask.id, item.parentTask.id)} onRemove={() => handleUnsetSubtaskDueDate(item.subtask.id, item.parentTask.id)} onDragStart={(e) => e.preventDefault()} onDragOver={(e) => e.preventDefault()} onDrop={(e) => e.preventDefault()} isDragging={false} onMoveSubtask={() => {}} subtaskIndex={index} totalSubtasks={completedTodaySubtasks.length} /> ))}</div>}
+        ) : (
+          <>
+            {view === 'backlog' && (
+                <>
+                {/* Add Task Form & Filters */}
+                <div className="mb-6 sm:mb-8">
+                    {isFormVisible ? (
+                    <div className="bg-white dark:bg-gray-800 p-3 sm:p-4 rounded-lg shadow-lg animate-fade-in-down">
+                        <input type="text" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} placeholder="Task Title" className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-500 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-cyan-500"/>
+                        <textarea value={newTaskDescription} onChange={(e) => setNewTaskDescription(e.target.value)} placeholder="Description... use #tag to add tags" rows={3} className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-500 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-cyan-500" />
+                        <div className="flex justify-end space-x-2">
+                            <button onClick={() => setIsFormVisible(false)} className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md transition-colors">Cancel</button>
+                            <button onClick={handleAddTask} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md transition-colors">Add Task</button>
+                        </div>
+                    </div>
+                    ) : (
+                    <button onClick={() => setIsFormVisible(true)} className="w-full flex items-center justify-center bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/80 border-2 border-dashed border-gray-300 dark:border-gray-700 hover:border-cyan-500 text-gray-500 dark:text-gray-400 hover:text-cyan-500 font-bold py-2 sm:py-3 px-4 rounded-lg transition-all duration-300">
+                        <PlusIcon /> <span className="ml-2">Add New Task</span>
+                    </button>
+                    )}
+                </div>
                 </>
             )}
-            {view === 'stats' && <StatsView tasks={tasks} />}
-            {view === 'settings' && <SettingsView currentConfig={supabaseConfig} onSave={handleSaveSupabaseConfig} />}
-          </div>
+
+            <div className="task-list">
+                {view === 'backlog' && sortedAndFilteredTasks.map((task, index) => (
+                    <TaskItem key={task.id} task={task} onDelete={requestDeleteTask} onUpdate={handleUpdateTask} onOpenSubtaskModal={handleOpenSubtaskModal} onDragStart={onDragStart} onDragOver={onDragOver} onDrop={onDrop} isDragging={draggedTask?.id === task.id} onSetSubtaskDueDate={handleSetSubtaskDueDate} onToggleTaskComplete={handleToggleTaskComplete} allTags={allTags} isCompactView={isCompactView} onMoveTask={handleMoveTask} taskIndex={index} totalTasks={sortedAndFilteredTasks.length} onSnoozeTask={handleSnoozeTask} isDraggable={sortOption === 'manual'} onUnsnoozeTask={handleUnsnoozeTask}/>
+                ))}
+                {view === 'snoozed' && snoozedTasks.map((task, index) => (
+                    <TaskItem key={task.id} task={task} onDelete={requestDeleteTask} onUpdate={handleUpdateTask} onOpenSubtaskModal={handleOpenSubtaskModal} onDragStart={() => {}} onDragOver={() => {}} onDrop={() => {}} isDragging={false} onSetSubtaskDueDate={handleSetSubtaskDueDate} onToggleTaskComplete={handleToggleTaskComplete} allTags={allTags} isCompactView={false} onMoveTask={() => {}} taskIndex={index} totalTasks={snoozedTasks.length} onSnoozeTask={handleSnoozeTask} onUnsnoozeTask={handleUnsnoozeTask} isDraggable={false}/>
+                ))}
+                {view === 'archive' && archivedTasks.map((task, index) => (
+                    <TaskItem key={task.id} task={task} onDelete={requestDeleteTask} onUpdate={handleUpdateTask} onOpenSubtaskModal={handleOpenSubtaskModal} onDragStart={() => {}} onDragOver={() => {}} onDrop={() => {}} isDragging={false} onSetSubtaskDueDate={handleSetSubtaskDueDate} onToggleTaskComplete={handleToggleTaskComplete} allTags={[]} isCompactView={false} onMoveTask={() => {}} taskIndex={index} totalTasks={archivedTasks.length} onSnoozeTask={handleSnoozeTask} isDraggable={false}/>
+                ))}
+                {view === 'today' && (
+                    <>
+                        {incompleteTodaySubtasks.map((item, index) => ( <TodaySubtaskItem key={item.subtask.id} item={{ subtask: item.subtask, parentTaskTitle: item.parentTask.title }} onToggleComplete={() => handleToggleTodaySubtaskComplete(item.subtask.id, item.parentTask.id)} onRemove={() => handleUnsetSubtaskDueDate(item.subtask.id, item.parentTask.id)} onDragStart={() => onTodayDragStart(item)} onDragOver={onDragOver} onDrop={() => onTodayDrop(item)} isDragging={draggedTodayItem?.subtask.id === item.subtask.id} onMoveSubtask={handleMoveTodaySubtask} subtaskIndex={index} totalSubtasks={incompleteTodaySubtasks.length} /> ))}
+                        {completedTodaySubtasks.length > 0 && <div className="mt-8"> <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 px-1 pt-2 mb-2">Completed</h3> {completedTodaySubtasks.map((item, index) => ( <TodaySubtaskItem key={item.subtask.id} item={{ subtask: item.subtask, parentTaskTitle: item.parentTask.title }} onToggleComplete={() => handleToggleTodaySubtaskComplete(item.subtask.id, item.parentTask.id)} onRemove={() => handleUnsetSubtaskDueDate(item.subtask.id, item.parentTask.id)} onDragStart={(e) => e.preventDefault()} onDragOver={(e) => e.preventDefault()} onDrop={(e) => e.preventDefault()} isDragging={false} onMoveSubtask={() => {}} subtaskIndex={index} totalSubtasks={completedTodaySubtasks.length} /> ))}</div>}
+                    </>
+                )}
+                {view === 'stats' && <StatsView tasks={tasks} />}
+                {view === 'settings' && <SettingsView currentConfig={supabaseConfig} onSave={handleSaveSupabaseConfig} />}
+            </div>
+          </>
+        )}
         </main>
       </div>
       {modalTask && <SubtaskModal task={modalTask} onClose={handleCloseModal} onUpdateTask={handleUpdateTask} onSetSubtaskDueDate={handleSetSubtaskDueDate} />}
