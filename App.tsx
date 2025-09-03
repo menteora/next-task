@@ -166,7 +166,11 @@ const App: React.FC = () => {
       .order('order', { ascending: true });
 
     if (tasksError) {
-      setStatusMessage({ type: 'error', text: `Error fetching tasks: ${tasksError.message}` });
+      let errorMessage = `Error fetching tasks: ${tasksError.message}`;
+      if (tasksError.message.includes("does not exist") || tasksError.message.includes("Could not find the table")) {
+          errorMessage = "Error: 'online_tasks' table not found. Please run the setup SQL from the Settings page in your Supabase project.";
+      }
+      setStatusMessage({ type: 'error', text: errorMessage });
       setIsLoading(false);
       return;
     }
@@ -177,7 +181,11 @@ const App: React.FC = () => {
       .order('order', { ascending: true });
       
     if (subtasksError) {
-      setStatusMessage({ type: 'error', text: `Error fetching subtasks: ${subtasksError.message}` });
+      let errorMessage = `Error fetching subtasks: ${subtasksError.message}`;
+      if (subtasksError.message.includes("does not exist") || subtasksError.message.includes("Could not find the table")) {
+          errorMessage = "Error: 'online_subtasks' table not found. Please run the setup SQL from the Settings page in your Supabase project.";
+      }
+      setStatusMessage({ type: 'error', text: errorMessage });
       setIsLoading(false);
       return;
     }
