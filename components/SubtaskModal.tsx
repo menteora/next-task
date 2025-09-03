@@ -21,12 +21,13 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
 
   const handleAddSubtask = () => {
     if (newSubtaskText.trim()) {
-      // FIX: Add a placeholder 'order' to satisfy the Subtask type. The order will be correctly recalculated below.
+      // FIX: Add a placeholder 'order' and default `isInstance` to satisfy type and DB constraints.
       const newSubtask: Subtask = {
         id: crypto.randomUUID(),
         text: newSubtaskText.trim(),
         completed: false,
         order: -1, // Placeholder order, will be recalculated.
+        isInstance: false,
       };
       const incomplete = task.subtasks.filter(st => !st.completed);
       const completed = task.subtasks.filter(st => st.completed);
