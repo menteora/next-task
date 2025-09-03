@@ -1008,7 +1008,14 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
     setTimeout(() => setStatusMessage(null), 3000);
   }
   
-  // MIGRATION LOGIC
+  // MIGRATION AND MODE SWITCHING LOGIC
+  
+  const clearLocalStorage = () => {
+    localStorage.removeItem('backlogTasks');
+    localStorage.removeItem('todayOrder');
+    localStorage.removeItem('selectedTags');
+  };
+
   const handleMigrateToOnline = async () => {
     if (!supabase || !supabaseSession) {
       setStatusMessage({type: 'error', text: 'You must be logged in to migrate.'});
@@ -1074,6 +1081,10 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
     
     setStatusMessage({type: 'success', text: 'Successfully migrated to online mode!'});
     setIsOnlineMode(true);
+    
+    // Clear local storage to prevent confusion and data conflicts
+    clearLocalStorage();
+
     setIsLoading(false);
   };
 
@@ -1085,6 +1096,35 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
     setStatusMessage({type: 'success', text: 'Successfully migrated to local mode!'});
     setIsOnlineMode(false);
     setIsLoading(false);
+  };
+  
+  const handleToggleOnlineMode = (enabled: boolean) => {
+    if (enabled && !isOnlineMode) {
+        // Switching from Local to Online
+        const localTasksExist = localStorage.getItem('backlogTasks') && JSON.parse(localStorage.getItem('backlogTasks')!).length > 0;
+
+        if (localTasksExist) {
+            setConfirmationState({
+                isOpen: true,
+                title: 'Switch to Online Mode?',
+                message: 'You have local data that has not been migrated. Switching to Online Mode will clear this local data to prevent conflicts. Your local data will be lost unless you export it first or migrate it. Are you sure you want to proceed?',
+                confirmText: 'Switch & Clear Data',
+                confirmClass: 'bg-yellow-600 hover:bg-yellow-700',
+                onConfirm: () => {
+                    clearLocalStorage();
+                    setIsOnlineMode(true);
+                    closeConfirmationModal();
+                },
+            });
+        } else {
+            // No local data, just switch
+            setIsOnlineMode(true);
+        }
+    } else if (!enabled && isOnlineMode) {
+        // Switching from Online to Local
+        // This is safe, it will just load whatever is (or isn't) in localStorage
+        setIsOnlineMode(false);
+    }
   };
 
 
@@ -1508,7 +1548,7 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
             )}
 
             {!isLoading && view === 'stats' && <StatsView tasks={tasks} />}
-            {!isLoading && view === 'settings' && <SettingsView currentConfig={supabaseConfig} onSave={handleSaveSupabaseConfig} isOnlineMode={isOnlineMode} onToggleOnlineMode={setIsOnlineMode} onMigrateToLocal={handleMigrateToLocal} onMigrateToOnline={handleMigrateToOnline} />}
+            {!isLoading && view === 'settings' && <SettingsView currentConfig={supabaseConfig} onSave={handleSaveSupabaseConfig} isOnlineMode={isOnlineMode} onToggleOnlineMode={handleToggleOnlineMode} onMigrateToLocal={handleMigrateToLocal} onMigrateToOnline={handleMigrateToOnline} />}
           </div>
         </main>
       </div>
