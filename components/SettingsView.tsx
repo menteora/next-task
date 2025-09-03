@@ -165,31 +165,11 @@ CREATE INDEX idx_online_subtasks_user_id ON public.online_subtasks(user_id);
     <div className="space-y-8 animate-fade-in-down">
        <div>
         <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Mode & Data</h2>
-         <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md space-y-4">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Enable Online Mode</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Sync your tasks directly with Supabase.</p>
-                </div>
-                <label htmlFor="online-mode-toggle" className="relative inline-flex items-center cursor-pointer">
-                    <input 
-                        type="checkbox" 
-                        id="online-mode-toggle"
-                        className="sr-only peer"
-                        checked={isOnlineMode}
-                        onChange={(e) => onToggleOnlineMode(e.target.checked)}
-                        disabled={!currentConfig}
-                    />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-cyan-300 dark:peer-focus:ring-cyan-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-cyan-600"></div>
-                </label>
-            </div>
-            {!currentConfig && <p className="text-xs text-yellow-600 dark:text-yellow-400">Please configure Supabase settings below to enable online mode.</p>}
-
-            <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+         <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md">
+            <div className="pb-4 border-b border-gray-200 dark:border-gray-700">
                 <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">One-Time Data Migration</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                    To move your data, use the buttons below. The app will automatically switch modes after a successful migration.
-                    <strong>Warning:</strong> These actions will overwrite the data at the destination.
+                    If you have local data, use the buttons below to move it to/from the cloud. <strong>This should be done before switching modes manually.</strong> The app will switch modes for you after a successful migration.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4">
                     <div className="flex-1">
@@ -219,6 +199,27 @@ CREATE INDEX idx_online_subtasks_user_id ON public.online_subtasks(user_id);
                         </p>
                     </div>
                 </div>
+            </div>
+
+            <div className="pt-4">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Enable Online Mode</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Toggle this to work directly with your cloud data. Use this if you don't need to migrate.</p>
+                    </div>
+                    <label htmlFor="online-mode-toggle" className="relative inline-flex items-center cursor-pointer">
+                        <input 
+                            type="checkbox" 
+                            id="online-mode-toggle"
+                            className="sr-only peer"
+                            checked={isOnlineMode}
+                            onChange={(e) => onToggleOnlineMode(e.target.checked)}
+                            disabled={!currentConfig}
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-cyan-300 dark:peer-focus:ring-cyan-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-cyan-600"></div>
+                    </label>
+                </div>
+                {!currentConfig && <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2">Please configure Supabase settings below to enable online mode.</p>}
             </div>
 
          </div>
