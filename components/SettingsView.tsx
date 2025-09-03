@@ -164,7 +164,7 @@ CREATE INDEX idx_online_subtasks_user_id ON public.online_subtasks(user_id);
   return (
     <div className="space-y-8 animate-fade-in-down">
        <div>
-        <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Mode</h2>
+        <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Mode & Data</h2>
          <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md space-y-4">
             <div className="flex items-center justify-between">
                 <div>
@@ -186,24 +186,39 @@ CREATE INDEX idx_online_subtasks_user_id ON public.online_subtasks(user_id);
             {!currentConfig && <p className="text-xs text-yellow-600 dark:text-yellow-400">Please configure Supabase settings below to enable online mode.</p>}
 
             <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                 <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">Data Migration</h3>
-                 <div className="flex flex-col sm:flex-row gap-2">
-                    <button
-                        onClick={onMigrateToOnline}
-                        disabled={isOnlineMode || !currentConfig}
-                        className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        Migrate Local to Online
-                    </button>
-                    <button
-                        onClick={onMigrateToLocal}
-                        disabled={!isOnlineMode || !currentConfig}
-                        className="w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        Migrate Online to Local
-                    </button>
-                 </div>
-                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Migrating will overwrite the destination data. Use with caution.</p>
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">One-Time Data Migration</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                    To move your data, use the buttons below. The app will automatically switch modes after a successful migration.
+                    <strong>Warning:</strong> These actions will overwrite the data at the destination.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="flex-1">
+                        <button
+                            onClick={onMigrateToOnline}
+                            disabled={isOnlineMode || !currentConfig}
+                            className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Migrate Local to Online
+                        </button>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            Uploads local data to the cloud. You should do this while in Local Mode.
+                            {isOnlineMode && <span className="text-yellow-600 dark:text-yellow-500"> (Disabled because you are already in Online Mode)</span>}
+                        </p>
+                    </div>
+                    <div className="flex-1">
+                        <button
+                            onClick={onMigrateToLocal}
+                            disabled={!isOnlineMode || !currentConfig}
+                            className="w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Migrate Online to Local
+                        </button>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            Downloads cloud data, overwriting local tasks. You should do this while in Online Mode.
+                            {!isOnlineMode && <span className="text-yellow-600 dark:text-yellow-500"> (Disabled because you are in Local Mode)</span>}
+                        </p>
+                    </div>
+                </div>
             </div>
 
          </div>
