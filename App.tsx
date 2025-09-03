@@ -1014,13 +1014,22 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
       return;
     }
     setIsLoading(true);
-    const localTasks = tasks;
+    
+    // Sanitize local tasks before migration to ensure `order` property exists.
+    const sanitizedLocalTasks = tasks.map((task, taskIndex) => ({
+      ...task,
+      order: task.order ?? taskIndex,
+      subtasks: (task.subtasks || []).map((subtask, subtaskIndex) => ({
+        ...subtask,
+        order: subtask.order ?? subtaskIndex,
+      })),
+    }));
     
     // Clear online tables
     await supabase.from('online_subtasks').delete().eq('user_id', supabaseSession.user.id);
     await supabase.from('online_tasks').delete().eq('user_id', supabaseSession.user.id);
 
-    const onlineTasks = localTasks.map(t => ({
+    const onlineTasks = sanitizedLocalTasks.map(t => ({
       id: t.id,
       user_id: supabaseSession.user.id,
       title: t.title,
@@ -1039,7 +1048,7 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
        return;
     }
     
-    const allSubtasks = localTasks.flatMap(t => t.subtasks.map(st => ({...st, task_id: t.id, user_id: supabaseSession.user.id})));
+    const allSubtasks = sanitizedLocalTasks.flatMap(t => t.subtasks.map(st => ({...st, task_id: t.id, user_id: supabaseSession.user.id})));
     const onlineSubtasks = allSubtasks.map(st => ({
         id: st.id,
         task_id: st.task_id,
