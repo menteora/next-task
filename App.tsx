@@ -874,23 +874,39 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
             const importedTasks = JSON.parse(text);
 
             if (!Array.isArray(importedTasks) || (importedTasks.length > 0 && typeof importedTasks[0].id === 'undefined')) {
-                 console.error('Invalid file format. Please import a valid JSON export file.');
+                 setStatusMessage({ type: 'error', text: 'Invalid file format. Please import a valid JSON export file.' });
+                 setTimeout(() => setStatusMessage(null), 3000);
                  return;
             }
+            
+            const sanitizedTasks = importedTasks.map((task: any, index: number) => ({
+              ...task,
+              order: task.order ?? index,
+              subtasks: (task.subtasks || []).map((st: any, stIndex: number) => ({
+                ...st,
+                order: st.order ?? stIndex
+              }))
+            }));
 
-            setTasks(importedTasks);
+            setTasks(sanitizedTasks);
             setTodayOrder([]);
-            console.log(`${importedTasks.length} tasks imported successfully!`);
+            setStatusMessage({ type: 'success', text: `${sanitizedTasks.length} tasks imported successfully!` });
+            setTimeout(() => setStatusMessage(null), 3000);
 
         } catch (error) {
-            console.error("Error importing tasks:", error);
+            const errorMessage = error instanceof Error ? error.message : "An unknown error occurred during import.";
+            setStatusMessage({ type: 'error', text: `Error importing tasks: ${errorMessage}` });
+            setTimeout(() => setStatusMessage(null), 3000);
         } finally {
             if (event.target) {
                 event.target.value = '';
             }
         }
     };
-    reader.onerror = () => console.error('An error occurred while reading the file.');
+    reader.onerror = () => {
+      setStatusMessage({ type: 'error', text: 'An error occurred while reading the file.' });
+      setTimeout(() => setStatusMessage(null), 3000);
+    };
     reader.readAsText(file);
   };
   
