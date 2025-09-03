@@ -884,7 +884,8 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
               order: task.order ?? index,
               subtasks: (task.subtasks || []).map((st: any, stIndex: number) => ({
                 ...st,
-                order: st.order ?? stIndex
+                order: st.order ?? stIndex,
+                isInstance: st.isInstance ?? false,
               }))
             }));
 
@@ -1022,6 +1023,7 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
       subtasks: (task.subtasks || []).map((subtask, subtaskIndex) => ({
         ...subtask,
         order: subtask.order ?? subtaskIndex,
+        isInstance: subtask.isInstance ?? false,
       })),
     }));
     
