@@ -276,24 +276,30 @@ const App: React.FC = () => {
   }, [tasks]);
   
   const todaySubtasks = useMemo(() => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayString = getTodayDateString();
-      const result: TodayItem[] = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayString = getTodayDateString();
+    const result: TodayItem[] = [];
 
-      tasks.forEach(task => {
-          task.subtasks.forEach(subtask => {
-              if (subtask.dueDate) {
-                  const dueDate = new Date(subtask.dueDate + 'T00:00:00');
-                  
-                  // Include subtasks due today OR overdue and not completed
-                  if (subtask.dueDate === todayString || (dueDate < today && !subtask.completed)) {
-                      result.push({ subtask, parentTask: task });
-                  }
-              }
-          });
-      });
-      return result;
+    tasks.forEach(task => {
+        task.subtasks.forEach(subtask => {
+            const wasCompletedToday = subtask.completed && subtask.completionDate?.startsWith(todayString);
+            
+            let isDueToday = false;
+            let isOverdueAndIncomplete = false;
+
+            if (subtask.dueDate) {
+                const dueDate = new Date(subtask.dueDate + 'T00:00:00');
+                isDueToday = subtask.dueDate === todayString;
+                isOverdueAndIncomplete = dueDate < today && !subtask.completed;
+            }
+
+            if (isDueToday || isOverdueAndIncomplete || wasCompletedToday) {
+                result.push({ subtask, parentTask: task });
+            }
+        });
+    });
+    return result;
   }, [tasks]);
 
   useEffect(() => {
@@ -424,12 +430,15 @@ const App: React.FC = () => {
 
   const handleSetSubtaskDueDate = useCallback((subtaskId: string, taskId: string, date: string) => {
     setTasks(prevTasks => {
-        return prevTasks.map(task => {
+        let updatedTaskForModal: Task | null = null;
+        
+        const newTasks = prevTasks.map(task => {
             if (task.id !== taskId) return task;
 
             const subtaskIndex = task.subtasks.findIndex(st => st.id === subtaskId);
             if (subtaskIndex === -1) return task;
 
+            let finalTask: Task;
             if (task.recurring) {
                 const originalSubtask = task.subtasks[subtaskIndex];
                 const newInstance: Subtask = {
@@ -440,15 +449,26 @@ const App: React.FC = () => {
                     isInstance: true,
                     completionDate: undefined,
                 };
-                return { ...task, subtasks: [...task.subtasks, newInstance] };
+                finalTask = { ...task, subtasks: [...task.subtasks, newInstance] };
             } else {
                 const updatedSubtasks = [...task.subtasks];
                 updatedSubtasks[subtaskIndex] = { ...updatedSubtasks[subtaskIndex], dueDate: date };
-                return { ...task, subtasks: updatedSubtasks };
+                finalTask = { ...task, subtasks: updatedSubtasks };
             }
+
+            if (modalTask?.id === finalTask.id) {
+                updatedTaskForModal = finalTask;
+            }
+            return finalTask;
         });
+        
+        if (updatedTaskForModal) {
+            setModalTask(updatedTaskForModal);
+        }
+
+        return newTasks;
     });
-  }, []);
+  }, [modalTask]);
 
 
   const handleToggleTodaySubtaskComplete = useCallback((subtaskId: string, taskId: string) => {
