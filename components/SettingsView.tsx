@@ -9,9 +9,13 @@ interface SupabaseConfig {
 interface SettingsViewProps {
   currentConfig: SupabaseConfig | null;
   onSave: (config: SupabaseConfig) => void;
+  isOnlineMode: boolean;
+  onToggleOnlineMode: (enabled: boolean) => void;
+  onMigrateToOnline: () => void;
+  onMigrateToLocal: () => void;
 }
 
-const SettingsView: React.FC<SettingsViewProps> = ({ currentConfig, onSave }) => {
+const SettingsView: React.FC<SettingsViewProps> = ({ currentConfig, onSave, isOnlineMode, onToggleOnlineMode, onMigrateToOnline, onMigrateToLocal }) => {
   const [url, setUrl] = useState(currentConfig?.url || '');
   const [anonKey, setAnonKey] = useState(currentConfig?.anonKey || '');
   const [email, setEmail] = useState(currentConfig?.email || '');
@@ -77,7 +81,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ currentConfig, onSave }) =>
     reader.readAsText(file);
   };
 
-  const sqlInstruction = `
+  const revisionHistorySql = `
 -- 1. Create the table to store task revisions for each user.
 CREATE TABLE public.tasks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -100,16 +104,113 @@ ON public.tasks
 FOR ALL
 USING (auth.uid() = user_id)
 WITH CHECK (auth.uid() = user_id);
+  `.trim();
 
--- 4. Create a user account in your Supabase project.
--- Go to Authentication -> Users and click "Add user".
--- Use the email and password from that account in this app's settings.
+  const onlineModeSql = `
+-- ONLINE MODE TABLES --
+
+-- 1. Create the 'online_tasks' table
+CREATE TABLE public.online_tasks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT,
+  completed BOOLEAN DEFAULT false NOT NULL,
+  recurring BOOLEAN DEFAULT false NOT NULL,
+  snooze_until DATE,
+  completion_date TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
+  "order" INTEGER NOT NULL
+);
+
+-- 2. Create the 'online_subtasks' table
+CREATE TABLE public.online_subtasks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  task_id UUID REFERENCES public.online_tasks(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  text TEXT NOT NULL,
+  completed BOOLEAN DEFAULT false NOT NULL,
+  due_date DATE,
+  completion_date TIMESTAMPTZ,
+  is_instance BOOLEAN DEFAULT false NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
+  "order" INTEGER NOT NULL
+);
+
+-- 3. Enable Row Level Security (RLS)
+ALTER TABLE public.online_tasks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.online_subtasks ENABLE ROW LEVEL SECURITY;
+
+-- 4. Create policies for 'online_tasks'
+CREATE POLICY "Allow users to manage their own online tasks"
+ON public.online_tasks
+FOR ALL
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+
+-- 5. Create policies for 'online_subtasks'
+CREATE POLICY "Allow users to manage their own online subtasks"
+ON public.online_subtasks
+FOR ALL
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+
+-- 6. (Optional but Recommended) Create indexes for performance
+CREATE INDEX idx_online_tasks_user_id ON public.online_tasks(user_id, "order");
+CREATE INDEX idx_online_subtasks_task_id ON public.online_subtasks(task_id, "order");
+CREATE INDEX idx_online_subtasks_user_id ON public.online_subtasks(user_id);
   `.trim();
 
   return (
     <div className="space-y-8 animate-fade-in-down">
+       <div>
+        <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Mode</h2>
+         <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md space-y-4">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Enable Online Mode</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Sync your tasks directly with Supabase.</p>
+                </div>
+                <label htmlFor="online-mode-toggle" className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                        type="checkbox" 
+                        id="online-mode-toggle"
+                        className="sr-only peer"
+                        checked={isOnlineMode}
+                        onChange={(e) => onToggleOnlineMode(e.target.checked)}
+                        disabled={!currentConfig}
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-cyan-300 dark:peer-focus:ring-cyan-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-cyan-600"></div>
+                </label>
+            </div>
+            {!currentConfig && <p className="text-xs text-yellow-600 dark:text-yellow-400">Please configure Supabase settings below to enable online mode.</p>}
+
+            <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                 <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">Data Migration</h3>
+                 <div className="flex flex-col sm:flex-row gap-2">
+                    <button
+                        onClick={onMigrateToOnline}
+                        disabled={isOnlineMode || !currentConfig}
+                        className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        Migrate Local to Online
+                    </button>
+                    <button
+                        onClick={onMigrateToLocal}
+                        disabled={!isOnlineMode || !currentConfig}
+                        className="w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        Migrate Online to Local
+                    </button>
+                 </div>
+                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Migrating will overwrite the destination data. Use with caution.</p>
+            </div>
+
+         </div>
+       </div>
+
       <div>
-        <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Supabase Settings</h2>
+        <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Supabase Connection</h2>
         <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md space-y-4">
           <div>
             <label htmlFor="supabaseUrl" className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">
@@ -182,18 +283,22 @@ WITH CHECK (auth.uid() = user_id);
       </div>
 
       <div>
-        <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Table Setup</h2>
+        <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Database Setup</h2>
         <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md">
-          <p className="text-gray-600 dark:text-gray-300 mb-4">
-            In your Supabase project, go to the SQL Editor and run the following commands to set up revision history.
-          </p>
-          <pre className="bg-gray-100 dark:bg-gray-900/50 p-4 rounded-md text-sm text-gray-800 dark:text-gray-200 overflow-x-auto">
-            <code>
-              {sqlInstruction}
-            </code>
-          </pre>
+           <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">For Online Mode</h3>
+           <p className="text-gray-600 dark:text-gray-300 mb-4">Run this in your Supabase SQL Editor to enable the live online mode.</p>
+           <pre className="bg-gray-100 dark:bg-gray-900/50 p-4 rounded-md text-sm text-gray-800 dark:text-gray-200 overflow-x-auto">
+             <code>{onlineModeSql}</code>
+           </pre>
+           <hr className="my-6 border-gray-200 dark:border-gray-700"/>
+           <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">For Revision History Backup (Legacy)</h3>
+           <p className="text-gray-600 dark:text-gray-300 mb-4">Run this to use the revision history import/export feature (works in local mode).</p>
+           <pre className="bg-gray-100 dark:bg-gray-900/50 p-4 rounded-md text-sm text-gray-800 dark:text-gray-200 overflow-x-auto">
+             <code>{revisionHistorySql}</code>
+           </pre>
         </div>
       </div>
+
     </div>
   );
 };

@@ -21,14 +21,19 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
 
   const handleAddSubtask = () => {
     if (newSubtaskText.trim()) {
+      // FIX: Add a placeholder 'order' to satisfy the Subtask type. The order will be correctly recalculated below.
       const newSubtask: Subtask = {
         id: crypto.randomUUID(),
         text: newSubtaskText.trim(),
         completed: false,
+        order: -1, // Placeholder order, will be recalculated.
       };
       const incomplete = task.subtasks.filter(st => !st.completed);
       const completed = task.subtasks.filter(st => st.completed);
-      const updatedSubtasks = [...incomplete, newSubtask, ...completed];
+      // FIX: Recalculate 'order' for all subtasks to ensure data consistency.
+      const updatedSubtasks = [...incomplete, newSubtask, ...completed].map(
+        (st, index) => ({ ...st, order: index }),
+      );
 
       onUpdateTask({ ...task, subtasks: updatedSubtasks });
       setNewSubtaskText('');
@@ -36,12 +41,15 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
   };
   
   const handleDeleteSubtask = (subtaskId: string) => {
-      const updatedSubtasks = task.subtasks.filter(st => st.id !== subtaskId);
+      // FIX: Recalculate order for remaining subtasks to prevent gaps and maintain consistency.
+      const updatedSubtasks = task.subtasks
+        .filter(st => st.id !== subtaskId)
+        .map((st, index) => ({ ...st, order: index }));
       onUpdateTask({ ...task, subtasks: updatedSubtasks });
   };
   
   const handleToggleComplete = (subtaskId: string) => {
-    const updatedSubtasks = task.subtasks.map(st => {
+    const updatedSubtasksWithToggle = task.subtasks.map(st => {
       if (st.id === subtaskId) {
         const isCompleted = !st.completed;
         return {
@@ -52,6 +60,12 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
       }
       return st;
     });
+
+    // FIX: Regroup and recalculate order to maintain separation of incomplete and completed tasks.
+    const incomplete = updatedSubtasksWithToggle.filter(st => !st.completed);
+    const completed = updatedSubtasksWithToggle.filter(st => st.completed);
+    const updatedSubtasks = [...incomplete, ...completed].map((st, index) => ({ ...st, order: index }));
+
     onUpdateTask({ ...task, subtasks: updatedSubtasks });
   }
 
@@ -107,7 +121,9 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
     }
 
     const completed = task.subtasks.filter(st => st.completed);
-    onUpdateTask({ ...task, subtasks: [...newIncompleteSubtasks, ...completed] });
+    // FIX: Recalculate order for all subtasks after moving an item.
+    const updatedSubtasks = [...newIncompleteSubtasks, ...completed].map((st, index) => ({ ...st, order: index }));
+    onUpdateTask({ ...task, subtasks: updatedSubtasks });
   };
 
   const onDragStart = (e: React.DragEvent<HTMLLIElement>, subtask: Subtask) => {
@@ -136,7 +152,9 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
     
     const completed = task.subtasks.filter(st => st.completed);
 
-    onUpdateTask({ ...task, subtasks: [...incomplete, ...completed] });
+    // FIX: Recalculate order for all subtasks after a drag-and-drop operation.
+    const updatedSubtasks = [...incomplete, ...completed].map((st, index) => ({ ...st, order: index }));
+    onUpdateTask({ ...task, subtasks: updatedSubtasks });
   };
 
   const onDragEnd = () => {
