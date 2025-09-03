@@ -5,6 +5,7 @@ export interface Subtask {
   dueDate?: string;
   isInstance?: boolean;
   completionDate?: string;
+  order: number;
 }
 
 export interface Task {
@@ -16,4 +17,5 @@ export interface Task {
   completed: boolean;
   completionDate?: string;
   snoozeUntil?: string;
+  order: number;
 }
