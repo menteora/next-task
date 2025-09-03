@@ -23,6 +23,19 @@ const TodaySubtaskItem: React.FC<TodaySubtaskItemProps> = ({ item, onToggleCompl
   const isAtTop = subtaskIndex === 0;
   const isAtBottom = subtaskIndex === totalSubtasks - 1;
 
+  let overdueDays = 0;
+  if (!subtask.completed && subtask.dueDate) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const dueDate = new Date(subtask.dueDate + 'T00:00:00');
+
+    if (dueDate < today) {
+      const diffTime = today.getTime() - dueDate.getTime();
+      overdueDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    }
+  }
+
   return (
     <div 
         draggable={!subtask.completed}
@@ -53,7 +66,14 @@ const TodaySubtaskItem: React.FC<TodaySubtaskItemProps> = ({ item, onToggleCompl
                     (Completed: {new Date(subtask.completionDate).toLocaleDateString()})
                 </span>
             )}
-            <p className="text-xs text-cyan-600 dark:text-cyan-500 mt-0.5 truncate">{parentTaskTitle}</p>
+            <div className="flex items-center flex-wrap gap-x-2 mt-0.5">
+                <p className="text-xs text-cyan-600 dark:text-cyan-500 truncate">{parentTaskTitle}</p>
+                {overdueDays > 0 && (
+                    <span className="text-xs font-semibold text-red-500 dark:text-red-400 bg-red-100 dark:bg-red-900/50 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                        {overdueDays} {overdueDays === 1 ? 'giorno in ritardo' : 'giorni in ritardo'}
+                    </span>
+                )}
+            </div>
         </div>
       </div>
       <div className="flex items-center justify-end flex-wrap gap-2 mt-2 sm:mt-0 sm:ml-4 flex-shrink-0">

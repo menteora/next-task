@@ -276,12 +276,20 @@ const App: React.FC = () => {
   }, [tasks]);
   
   const todaySubtasks = useMemo(() => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
       const todayString = getTodayDateString();
       const result: TodayItem[] = [];
+
       tasks.forEach(task => {
           task.subtasks.forEach(subtask => {
-              if (subtask.dueDate === todayString) {
-                  result.push({ subtask, parentTask: task });
+              if (subtask.dueDate) {
+                  const dueDate = new Date(subtask.dueDate + 'T00:00:00');
+                  
+                  // Include subtasks due today OR overdue and not completed
+                  if (subtask.dueDate === todayString || (dueDate < today && !subtask.completed)) {
+                      result.push({ subtask, parentTask: task });
+                  }
               }
           });
       });
