@@ -709,6 +709,15 @@ const App: React.FC = () => {
     setTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
 
   }, [tasks, isOnlineMode, supabase]);
+
+  const handleUpdateParentTaskDescription = useCallback(async (taskId: string, newDescription: string) => {
+    const taskToUpdate = tasks.find(t => t.id === taskId);
+    if (!taskToUpdate) return;
+    
+    const updatedTask = { ...taskToUpdate, description: newDescription };
+    // This will call the existing update logic (local + supabase)
+    await handleUpdateTask(updatedTask);
+  }, [tasks, handleUpdateTask]);
   
   const handleMoveTask = useCallback(async (taskId: string, direction: 'up' | 'down' | 'top' | 'bottom') => {
     
@@ -1505,7 +1514,8 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
                                     item={{ 
                                       subtask: item.subtask, 
                                       parentTaskTitle: item.parentTask.title, 
-                                      parentTaskDescription: item.parentTask.description 
+                                      parentTaskDescription: item.parentTask.description,
+                                      parentTaskId: item.parentTask.id,
                                     }}
                                     onToggleComplete={() => handleToggleTodaySubtaskComplete(item.subtask.id, item.parentTask.id)}
                                     onRemove={() => handleUnsetSubtaskDueDate(item.subtask.id, item.parentTask.id)}
@@ -1516,6 +1526,7 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
                                     onMoveSubtask={handleMoveTodaySubtask}
                                     subtaskIndex={index}
                                     totalSubtasks={incompleteTodaySubtasks.length}
+                                    onUpdateParentTaskDescription={handleUpdateParentTaskDescription}
                                 />
                             ))}
                         </div>
@@ -1530,7 +1541,8 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
                                     item={{ 
                                       subtask: item.subtask, 
                                       parentTaskTitle: item.parentTask.title,
-                                      parentTaskDescription: item.parentTask.description
+                                      parentTaskDescription: item.parentTask.description,
+                                      parentTaskId: item.parentTask.id,
                                     }}
                                     onToggleComplete={() => handleToggleTodaySubtaskComplete(item.subtask.id, item.parentTask.id)}
                                     onRemove={() => handleUnsetSubtaskDueDate(item.subtask.id, item.parentTask.id)}
@@ -1541,6 +1553,7 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
                                     onMoveSubtask={() => {}}
                                     subtaskIndex={index}
                                     totalSubtasks={completedTodaySubtasks.length}
+                                    onUpdateParentTaskDescription={handleUpdateParentTaskDescription}
                                 />
                             ))}
                         </div>

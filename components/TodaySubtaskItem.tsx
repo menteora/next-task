@@ -1,14 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Subtask } from '../types';
-import { TrashIcon, GripVerticalIcon, ChevronDoubleUpIcon, ChevronUpIcon, ChevronDownIcon, ChevronDoubleDownIcon } from './icons';
+import { CalendarX2Icon, GripVerticalIcon, ChevronDoubleUpIcon, ChevronUpIcon, ChevronDownIcon, ChevronDoubleDownIcon, EditIcon } from './icons';
 
 interface TodaySubtaskItemProps {
   item: {
       subtask: Subtask;
       parentTaskTitle: string;
       parentTaskDescription: string;
+      parentTaskId: string;
   };
   onToggleComplete: () => void;
   onRemove: () => void;
@@ -19,11 +20,24 @@ interface TodaySubtaskItemProps {
   onMoveSubtask: (subtaskId: string, direction: 'up' | 'down' | 'top' | 'bottom') => void;
   subtaskIndex: number;
   totalSubtasks: number;
+  onUpdateParentTaskDescription: (taskId: string, newDescription: string) => void;
 }
 
-const TodaySubtaskItem: React.FC<TodaySubtaskItemProps> = ({ item, onToggleComplete, onRemove, onDragStart, onDragOver, onDrop, isDragging, onMoveSubtask, subtaskIndex, totalSubtasks }) => {
-  const { subtask, parentTaskTitle, parentTaskDescription } = item;
+const TodaySubtaskItem: React.FC<TodaySubtaskItemProps> = ({ item, onToggleComplete, onRemove, onDragStart, onDragOver, onDrop, isDragging, onMoveSubtask, subtaskIndex, totalSubtasks, onUpdateParentTaskDescription }) => {
+  const { subtask, parentTaskTitle, parentTaskDescription, parentTaskId } = item;
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [editingDescriptionText, setEditingDescriptionText] = useState(parentTaskDescription);
+
+  useEffect(() => {
+    setEditingDescriptionText(parentTaskDescription);
+  }, [parentTaskDescription]);
+  
+  const handleSaveDescription = () => {
+    onUpdateParentTaskDescription(parentTaskId, editingDescriptionText);
+    setIsEditingDescription(false);
+  };
+
   const isAtTop = subtaskIndex === 0;
   const isAtBottom = subtaskIndex === totalSubtasks - 1;
 
@@ -102,16 +116,44 @@ const TodaySubtaskItem: React.FC<TodaySubtaskItemProps> = ({ item, onToggleCompl
           )}
           <button
             onClick={onRemove}
-            className="text-gray-400 dark:text-gray-500 hover:text-red-500 transition-colors p-1"
-            aria-label={`Remove subtask ${subtask.text} from today`}
+            className="text-gray-400 dark:text-gray-500 hover:text-yellow-600 dark:hover:text-yellow-500 transition-colors p-1"
+            aria-label={`Unschedule subtask ${subtask.text}`}
+            title="Unschedule (remove from Today)"
           >
-            <TrashIcon />
+            <CalendarX2Icon />
           </button>
         </div>
       </div>
-      {isDescriptionExpanded && parentTaskDescription && (
-        <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 w-full prose max-w-none text-sm">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{parentTaskDescription}</ReactMarkdown>
+      {isDescriptionExpanded && (
+        <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 w-full">
+          {isEditingDescription ? (
+            <div>
+              <textarea
+                value={editingDescriptionText}
+                onChange={(e) => setEditingDescriptionText(e.target.value)}
+                rows={4}
+                className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white text-sm rounded-md p-2 mb-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                autoFocus
+              />
+              <div className="flex justify-end space-x-2">
+                <button onClick={() => setIsEditingDescription(false)} className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-1 px-3 rounded-md text-sm transition-colors">
+                  Cancel
+                </button>
+                <button onClick={handleSaveDescription} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-1 px-3 rounded-md text-sm transition-colors">
+                  Save
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex justify-between items-start">
+              <div className="prose max-w-none text-sm flex-grow">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{parentTaskDescription || 'No description.'}</ReactMarkdown>
+              </div>
+              <button onClick={() => setIsEditingDescription(true)} className="text-gray-400 dark:text-gray-500 hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors p-1 flex-shrink-0 ml-4 -mt-1" aria-label="Edit description">
+                <EditIcon className="h-4 w-4" />
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
