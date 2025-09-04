@@ -1,4 +1,6 @@
 import React, { useState, useMemo } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Task } from '../types';
 import { TrashIcon, ChevronDownIcon, GripVerticalIcon, EditIcon, CalendarPlusIcon, RepeatIcon, CalendarIcon, ChevronUpIcon, ChevronDoubleUpIcon, ChevronDoubleDownIcon, ClockIcon, SnoozeIcon } from './icons';
 
@@ -30,6 +32,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
   const [isRecurring, setIsRecurring] = useState(task.recurring ?? false);
   const [editingSnoozeUntil, setEditingSnoozeUntil] = useState(task.snoozeUntil);
   const [isSnoozeMenuOpen, setIsSnoozeMenuOpen] = useState(false);
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
 
   const lastTouchedDaysAgo = useMemo(() => {
     const completedSubtasks = task.subtasks.filter(st => st.completed && st.completionDate);
@@ -65,6 +68,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
         snoozeUntil: editingSnoozeUntil,
       });
       setIsEditing(false);
+      if (isDescriptionExpanded) setIsDescriptionExpanded(false);
     }
   };
 
@@ -87,21 +91,6 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
 
   const nextAction = task.subtasks.find(st => !st.completed);
   const allSubtasksCompleted = task.subtasks.length > 0 && task.subtasks.every(st => st.completed);
-
-  const renderDescriptionWithTags = (description: string) => {
-    if (!description) return null;
-    const parts = description.split(/(#\w+)/g);
-    return parts.map((part, index) => {
-      if (part.startsWith('#')) {
-        return (
-          <span key={index} className="bg-cyan-100 dark:bg-cyan-900/50 text-cyan-700 dark:text-cyan-400 font-semibold rounded px-1.5 py-0.5">
-            {part}
-          </span>
-        );
-      }
-      return part;
-    });
-  };
 
   const suggestedTags = allTags.filter(tag => !editingDescription.includes(tag));
   const isAtTop = taskIndex === 0;
@@ -211,9 +200,19 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
                             </span>
                         )}
                     </div>
-                    <p className="text-gray-500 dark:text-gray-400 mt-1 whitespace-pre-wrap text-sm sm:text-base">
-                        {renderDescriptionWithTags(task.description)}
-                    </p>
+                    {task.description && (
+                      <div className="mt-2">
+                        <button onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)} className="flex items-center text-xs text-gray-500 dark:text-gray-400 hover:text-cyan-600 dark:hover:text-cyan-400 font-medium">
+                            {isDescriptionExpanded ? 'Nascondi Descrizione' : 'Mostra Descrizione'}
+                            {isDescriptionExpanded ? <ChevronUpIcon className="h-4 w-4 ml-1" /> : <ChevronDownIcon className="h-4 w-4 ml-1" />}
+                        </button>
+                        {isDescriptionExpanded && (
+                           <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-md border border-gray-200 dark:border-gray-700 prose max-w-none text-sm sm:text-base">
+                             <ReactMarkdown remarkPlugins={[remarkGfm]}>{task.description}</ReactMarkdown>
+                           </div>
+                        )}
+                      </div>
+                    )}
                 </div>
             )}
          </div>
