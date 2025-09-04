@@ -76,9 +76,14 @@ const MarkdownInput: React.FC<MarkdownInputProps> = ({ value, onChange, placehol
   const handleConfirmLink = (url: string) => {
     setIsLinkModalOpen(false);
     const finalUrl = url.trim() || 'https://example.com';
-    const textToInsert = `[testo del link](${finalUrl})`;
-    // Select "testo del link"
-    insertTextAndSelect(textToInsert, 1, 15);
+    const linkText = 'testo del link';
+    const textToInsert = `[${linkText}](${finalUrl})`;
+    
+    // Select 'testo del link' for easy editing.
+    const selectionStartOffset = 1; // Start selection after the opening '['
+    const selectionEndOffset = selectionStartOffset + linkText.length;
+    
+    insertTextAndSelect(textToInsert, selectionStartOffset, selectionEndOffset);
   };
 
   const handleInsertDateLog = () => {
