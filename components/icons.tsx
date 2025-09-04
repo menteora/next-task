@@ -27,7 +27,8 @@ import {
   Clock,
   LogOut,
   Archive,
-  AlarmClockOff
+  AlarmClockOff,
+  CalendarX2
 } from 'lucide-react';
 
 // Note: The original components had specific classNames.
@@ -86,3 +87,5 @@ export const LogOutIcon = (props: LucideProps) => <LogOut className="h-6 w-6" {.
 export const ArchiveIcon = (props: LucideProps) => <Archive className="h-6 w-6" {...props} />;
 
 export const SnoozeIcon = ({ className = "h-6 w-6", ...props }: LucideProps) => <AlarmClockOff className={className} {...props} />;
+
+export const CalendarX2Icon = (props: LucideProps) => <CalendarX2 className="h-5 w-5" {...props} />;

@@ -201,17 +201,10 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
                         )}
                     </div>
                     {task.description && (
-                      <div className="mt-2">
-                        <button onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)} className="flex items-center text-xs text-gray-500 dark:text-gray-400 hover:text-cyan-600 dark:hover:text-cyan-400 font-medium">
-                            {isDescriptionExpanded ? 'Nascondi Descrizione' : 'Mostra Descrizione'}
-                            {isDescriptionExpanded ? <ChevronUpIcon className="h-4 w-4 ml-1" /> : <ChevronDownIcon className="h-4 w-4 ml-1" />}
-                        </button>
-                        {isDescriptionExpanded && (
-                           <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-md border border-gray-200 dark:border-gray-700 prose max-w-none text-sm sm:text-base">
-                             <ReactMarkdown remarkPlugins={[remarkGfm]}>{task.description}</ReactMarkdown>
-                           </div>
-                        )}
-                      </div>
+                      <button onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)} className="mt-2 flex items-center text-xs text-gray-500 dark:text-gray-400 hover:text-cyan-600 dark:hover:text-cyan-400 font-medium">
+                          {isDescriptionExpanded ? 'Nascondi Descrizione' : 'Mostra Descrizione'}
+                          {isDescriptionExpanded ? <ChevronUpIcon className="h-4 w-4 ml-1" /> : <ChevronDownIcon className="h-4 w-4 ml-1" />}
+                      </button>
                     )}
                 </div>
             )}
@@ -278,6 +271,12 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
             ) : null}
         </div>
       </div>
+      
+      {!isEditing && isDescriptionExpanded && task.description && (
+         <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-md border border-gray-200 dark:border-gray-700 prose max-w-none text-sm sm:text-base">
+           <ReactMarkdown remarkPlugins={[remarkGfm]}>{task.description}</ReactMarkdown>
+         </div>
+      )}
 
        {task.snoozeUntil && !task.completed && onUnsnoozeTask && (
         <div className="mt-3 p-2 bg-yellow-100 dark:bg-yellow-900/50 rounded-md flex items-center justify-between">
