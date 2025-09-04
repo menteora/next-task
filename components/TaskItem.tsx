@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Task } from '../types';
 import { TrashIcon, ChevronDownIcon, GripVerticalIcon, EditIcon, CalendarPlusIcon, RepeatIcon, CalendarIcon, ChevronUpIcon, ChevronDoubleUpIcon, ChevronDoubleDownIcon, ClockIcon, SnoozeIcon } from './icons';
+import MarkdownInput from './MarkdownInput';
 
 interface TaskItemProps {
   task: Task;
@@ -129,20 +130,19 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
       <div className="flex flex-col sm:flex-row justify-between sm:items-start">
          <div className="flex-grow w-full sm:mr-4">
             {isEditing ? (
-            <div>
+            <div className="space-y-2">
                 <input
                 autoFocus
                 type="text"
                 value={editingTitle}
                 onChange={(e) => setEditingTitle(e.target.value)}
-                className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white font-bold text-lg rounded-md px-2 py-1 mb-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white font-bold text-lg rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-cyan-500"
                 />
-                <textarea
-                value={editingDescription}
-                onChange={(e) => setEditingDescription(e.target.value)}
-                placeholder="Description... use #tag to add tags"
-                rows={3}
-                className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white text-sm rounded-md px-2 py-1 mb-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                <MarkdownInput
+                  value={editingDescription}
+                  onChange={setEditingDescription}
+                  placeholder="Description... use #tag to add tags"
+                  rows={4}
                 />
                 {suggestedTags.length > 0 && (
                 <div className="mt-2">
@@ -160,7 +160,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
                     </div>
                 </div>
                 )}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                     <label className="flex items-center text-sm text-gray-500 dark:text-gray-400">
                         <input
                             type="checkbox"

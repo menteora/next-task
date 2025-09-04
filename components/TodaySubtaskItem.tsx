@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Subtask } from '../types';
 import { CalendarX2Icon, GripVerticalIcon, ChevronDoubleUpIcon, ChevronUpIcon, ChevronDownIcon, ChevronDoubleDownIcon, EditIcon } from './icons';
+import MarkdownInput from './MarkdownInput';
 
 interface TodaySubtaskItemProps {
   item: {
@@ -128,14 +129,13 @@ const TodaySubtaskItem: React.FC<TodaySubtaskItemProps> = ({ item, onToggleCompl
         <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 w-full">
           {isEditingDescription ? (
             <div>
-              <textarea
+              <MarkdownInput
                 value={editingDescriptionText}
-                onChange={(e) => setEditingDescriptionText(e.target.value)}
+                onChange={setEditingDescriptionText}
                 rows={4}
-                className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white text-sm rounded-md p-2 mb-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
                 autoFocus
               />
-              <div className="flex justify-end space-x-2">
+              <div className="flex justify-end space-x-2 mt-2">
                 <button onClick={() => setIsEditingDescription(false)} className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-1 px-3 rounded-md text-sm transition-colors">
                   Cancel
                 </button>
