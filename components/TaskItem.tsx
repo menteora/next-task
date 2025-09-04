@@ -305,34 +305,34 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
             </button>
           </div>
         ) : nextAction ? (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between">
-            <div className="flex items-center flex-grow mb-2 sm:mb-0 sm:mr-2">
-              <button
-                onClick={() => onSetSubtaskDueDate(nextAction.id, task.id, getTodayDateString())}
-                className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-yellow-100 dark:hover:bg-yellow-900/50 hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors"
-                aria-label={`Schedule subtask '${nextAction.text}' for today`}
-                title="Schedule for Today"
-              >
-                <CalendarPlusIcon />
-              </button>
-              <span className="ml-2 text-gray-600 dark:text-gray-300">{nextAction.text}</span>
+          <div className="flex items-stretch gap-3">
+            <div className="w-1 bg-teal-500 dark:bg-teal-600 rounded-full flex-shrink-0" aria-hidden="true"></div>
+            <div className="flex-grow flex flex-col sm:flex-row sm:items-center justify-between min-w-0 py-1">
+              <div className="flex items-center flex-grow mb-2 sm:mb-0 sm:mr-2 min-w-0">
+                <button
+                  onClick={() => onSetSubtaskDueDate(nextAction.id, task.id, getTodayDateString())}
+                  className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-yellow-100 dark:hover:bg-yellow-900/50 hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors flex-shrink-0"
+                  aria-label={`Schedule subtask '${nextAction.text}' for today`}
+                  title="Schedule for Today"
+                >
+                  <CalendarPlusIcon />
+                </button>
+                <span className="ml-2 text-gray-600 dark:text-gray-300 truncate">{nextAction.text}</span>
+              </div>
               {nextAction.dueDate && (
-                <span className="ml-3 flex items-center text-xs text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded-full">
-                  <CalendarIcon className="h-4 w-4 mr-1" />
-                  {new Date(
-                    nextAction.dueDate + 'T00:00:00'
-                  ).toLocaleDateString(undefined, {
-                    weekday: 'short',
-                    month: 'numeric',
-                    day: 'numeric',
-                  })}
-                </span>
+                <div className="self-start sm:self-center flex-shrink-0">
+                  <span className="flex items-center text-xs text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded-full whitespace-nowrap">
+                    <CalendarIcon className="h-4 w-4 mr-1" />
+                    {new Date(
+                      nextAction.dueDate + 'T00:00:00'
+                    ).toLocaleDateString(undefined, {
+                      weekday: 'short',
+                      month: 'numeric',
+                      day: 'numeric',
+                    })}
+                  </span>
+                </div>
               )}
-            </div>
-            <div className="flex-shrink-0 self-start sm:self-center">
-              <span className="text-xs font-semibold text-teal-700 dark:text-teal-400 bg-teal-100 dark:bg-teal-900/50 px-2 py-1 rounded-full">
-                NEXT ACTION
-              </span>
             </div>
           </div>
         ) : allSubtasksCompleted ? (
