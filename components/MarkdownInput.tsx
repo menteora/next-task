@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { LinkIcon, CalendarPlusIcon } from './icons';
+import LinkModal from './LinkModal';
 
 interface MarkdownInputProps {
   value: string;
@@ -10,7 +11,8 @@ interface MarkdownInputProps {
 }
 
 const MarkdownInput: React.FC<MarkdownInputProps> = ({ value, onChange, placeholder, rows = 3, autoFocus = false }) => {
-  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
 
   const getCurrentDateTimeStringForLog = () => {
     return new Date().toLocaleString(undefined, {
@@ -68,7 +70,15 @@ const MarkdownInput: React.FC<MarkdownInputProps> = ({ value, onChange, placehol
   }
 
   const handleInsertLink = () => {
-    insertTextAndSelect('[link text](url)', 12, 15);
+    setIsLinkModalOpen(true);
+  };
+
+  const handleConfirmLink = (url: string) => {
+    setIsLinkModalOpen(false);
+    const finalUrl = url.trim() || 'https://example.com';
+    const textToInsert = `[testo del link](${finalUrl})`;
+    // Select "testo del link"
+    insertTextAndSelect(textToInsert, 1, 15);
   };
 
   const handleInsertDateLog = () => {
@@ -103,6 +113,11 @@ const MarkdownInput: React.FC<MarkdownInputProps> = ({ value, onChange, placehol
         rows={rows}
         autoFocus={autoFocus}
         className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white text-sm rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+      />
+      <LinkModal
+        isOpen={isLinkModalOpen}
+        onClose={() => setIsLinkModalOpen(false)}
+        onConfirm={handleConfirmLink}
       />
     </div>
   );
