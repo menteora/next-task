@@ -22,21 +22,49 @@ interface TodaySubtaskItemProps {
   subtaskIndex: number;
   totalSubtasks: number;
   onUpdateParentTaskDescription: (taskId: string, newDescription: string) => void;
+  onUpdateSubtaskText: (taskId: string, subtaskId: string, newText: string) => void;
 }
 
-const TodaySubtaskItem: React.FC<TodaySubtaskItemProps> = ({ item, onToggleComplete, onRemove, onDragStart, onDragOver, onDrop, isDragging, onMoveSubtask, subtaskIndex, totalSubtasks, onUpdateParentTaskDescription }) => {
+const TodaySubtaskItem: React.FC<TodaySubtaskItemProps> = ({ item, onToggleComplete, onRemove, onDragStart, onDragOver, onDrop, isDragging, onMoveSubtask, subtaskIndex, totalSubtasks, onUpdateParentTaskDescription, onUpdateSubtaskText }) => {
   const { subtask, parentTaskTitle, parentTaskDescription, parentTaskId } = item;
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [editingDescriptionText, setEditingDescriptionText] = useState(parentTaskDescription);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingText, setEditingText] = useState(subtask.text);
 
   useEffect(() => {
     setEditingDescriptionText(parentTaskDescription);
   }, [parentTaskDescription]);
   
+  useEffect(() => {
+    if (!isEditing) {
+        setEditingText(subtask.text);
+    }
+  }, [subtask.text, isEditing]);
+
   const handleSaveDescription = () => {
     onUpdateParentTaskDescription(parentTaskId, editingDescriptionText);
     setIsEditingDescription(false);
+  };
+
+  const handleStartEdit = () => {
+    if (subtask.completed) return;
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditingText(subtask.text);
+  };
+  
+  const handleSaveEdit = () => {
+    if (!editingText.trim()) {
+        handleCancelEdit();
+        return;
+    }
+    onUpdateSubtaskText(parentTaskId, subtask.id, editingText.trim());
+    setIsEditing(false);
   };
 
   const isAtTop = subtaskIndex === 0;
@@ -77,10 +105,25 @@ const TodaySubtaskItem: React.FC<TodaySubtaskItemProps> = ({ item, onToggleCompl
             checked={subtask.completed}
             onChange={onToggleComplete}
           />
-          <div className="ml-3 min-w-0">
-              <label htmlFor={`today-subtask-${subtask.id}`} className={`text-gray-700 dark:text-gray-200 cursor-pointer break-words ${subtask.completed ? 'line-through text-gray-500 dark:text-gray-500' : ''}`}>
-                  {subtask.text}
-              </label>
+          <div className="ml-3 min-w-0 flex-grow">
+              {isEditing && !subtask.completed ? (
+                 <input
+                    autoFocus
+                    type="text"
+                    value={editingText}
+                    onChange={e => setEditingText(e.target.value)}
+                    onBlur={handleSaveEdit}
+                    onKeyDown={e => {
+                        if (e.key === 'Enter') handleSaveEdit();
+                        if (e.key === 'Escape') handleCancelEdit();
+                    }}
+                    className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                />
+              ) : (
+                <label htmlFor={`today-subtask-${subtask.id}`} className={`text-gray-700 dark:text-gray-200 cursor-pointer break-words ${subtask.completed ? 'line-through text-gray-500 dark:text-gray-500' : ''}`}>
+                    {subtask.text}
+                </label>
+              )}
               {subtask.completed && subtask.completionDate && (
                   <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
                       (Completed: {new Date(subtask.completionDate).toLocaleDateString()})
@@ -104,6 +147,16 @@ const TodaySubtaskItem: React.FC<TodaySubtaskItemProps> = ({ item, onToggleCompl
                   <button onClick={() => onMoveSubtask(subtask.id, 'down')} disabled={isAtBottom} className="p-1.5 border-l border-gray-200 dark:border-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-cyan-500 dark:text-gray-400 dark:hover:text-cyan-400 transition-colors" title="Move down" aria-label="Move subtask down"><ChevronDownIcon className="h-4 w-4" /></button>
                   <button onClick={() => onMoveSubtask(subtask.id, 'bottom')} disabled={isAtBottom} className="p-1.5 border-l border-gray-200 dark:border-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-cyan-500 dark:text-gray-400 dark:hover:text-cyan-400 transition-colors" title="Move to bottom" aria-label="Move subtask to bottom"><ChevronDoubleDownIcon className="h-4 w-4" /></button>
               </div>
+          )}
+          {!subtask.completed && (
+            <button 
+              onClick={handleStartEdit} 
+              className="text-gray-400 dark:text-gray-500 hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors p-1"
+              aria-label="Edit subtask"
+              title="Edit subtask"
+            >
+                <EditIcon className="h-4 w-4"/>
+            </button>
           )}
           {parentTaskDescription && (
             <button 

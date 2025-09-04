@@ -720,6 +720,29 @@ const App: React.FC = () => {
     await handleUpdateTask(updatedTask);
   }, [tasks, handleUpdateTask]);
   
+  const handleUpdateSubtaskText = useCallback(async (taskId: string, subtaskId: string, newText: string) => {
+    const taskToUpdate = tasks.find(t => t.id === taskId);
+    if (!taskToUpdate) return;
+
+    if (isOnlineMode && supabase) {
+      const { error } = await supabase.from('online_subtasks')
+        .update({ text: newText })
+        .match({ id: subtaskId });
+      if (error) {
+        setStatusMessage({ type: 'error', text: `Failed to update subtask: ${error.message}` });
+        return;
+      }
+    }
+
+    const updatedSubtasks = taskToUpdate.subtasks.map(st =>
+      st.id === subtaskId ? { ...st, text: newText } : st
+    );
+
+    setTasks(prevTasks => prevTasks.map(task =>
+      task.id === taskId ? { ...task, subtasks: updatedSubtasks } : task
+    ));
+  }, [tasks, isOnlineMode, supabase]);
+  
   const handleMoveTask = useCallback(async (taskId: string, direction: 'up' | 'down' | 'top' | 'bottom') => {
     
     const activeTasks = tasks.filter(t => !t.completed).sort((a,b) => a.order - b.order);
@@ -1144,7 +1167,7 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
         <header className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 sm:mb-8">
           <div className="w-full">
             <h1 className="text-4xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-teal-600 dark:from-cyan-400 dark:to-teal-500">
-              Backlog
+              Next Task
             </h1>
             <p className="text-gray-500 dark:text-gray-400 mt-2 text-sm sm:text-base">Organize your work, focus on the next action.</p>
           </div>
@@ -1334,282 +1357,253 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
                 )}
             </div>
             <div className="mb-6 sm:mb-8">
-                {isFormVisible ? (
-                <div className="bg-white dark:bg-gray-800 p-3 sm:p-4 rounded-lg shadow-lg animate-fade-in-down">
+                {!isFormVisible ? (
+                  <button
+                    onClick={() => setIsFormVisible(true)}
+                    className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center transition-all shadow-md hover:shadow-lg"
+                  >
+                    <PlusIcon />
+                    <span className="ml-2">Add New Task</span>
+                  </button>
+                ) : (
+                  <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md space-y-4 animate-fade-in-down">
                     <input
-                    type="text"
-                    value={newTaskTitle}
-                    onChange={(e) => setNewTaskTitle(e.target.value)}
-                    placeholder="Task Title"
-                    className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-500 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      type="text"
+                      value={newTaskTitle}
+                      onChange={(e) => setNewTaskTitle(e.target.value)}
+                      placeholder="Task Title"
+                      className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-500 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      autoFocus
                     />
-                    <div className="mb-3">
-                        <MarkdownInput
-                          value={newTaskDescription}
-                          onChange={setNewTaskDescription}
-                          placeholder="Description... use #tag to add tags"
-                          rows={3}
-                        />
-                    </div>
-                    {allTags.length > 0 && (
-                        <div className="mb-3">
-                            <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Suggested tags:</h4>
-                            <div className="flex flex-wrap gap-1">
-                                {allTags
-                                    .filter(tag => !newTaskDescription.includes(tag))
-                                    .map(tag => (
-                                    <button 
-                                        key={tag} 
-                                        onClick={() => handleAddTagToDescription(tag, setNewTaskDescription)}
-                                        className="px-2 py-0.5 text-xs rounded-full bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 transition-colors"
-                                    >
-                                        {tag}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                    <label className="flex items-center mb-3 text-sm text-gray-500 dark:text-gray-400">
-                        <input
+                    <MarkdownInput 
+                      value={newTaskDescription}
+                      onChange={setNewTaskDescription}
+                      placeholder="Description... use #tag to add tags"
+                    />
+                     <div className="flex items-center">
+                       <input
                             type="checkbox"
+                            id="new-task-recurring"
                             checked={isNewTaskRecurring}
                             onChange={e => setIsNewTaskRecurring(e.target.checked)}
                             className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-gray-200 dark:bg-gray-700 text-teal-600 dark:text-teal-500 focus:ring-teal-500 dark:focus:ring-teal-600 cursor-pointer"
                         />
-                        <span className="ml-2">Recurring Task</span>
-                    </label>
-                    <div className="flex justify-end space-x-2">
-                    <button onClick={() => setIsFormVisible(false)} className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md transition-colors">
-                        Cancel
-                    </button>
-                    <button onClick={handleAddTask} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md transition-colors">
-                        Add Task
-                    </button>
+                        <label htmlFor="new-task-recurring" className="ml-2 text-sm text-gray-500 dark:text-gray-400">Recurring Task</label>
                     </div>
-                </div>
-                ) : (
-                <button onClick={() => setIsFormVisible(true)} className="w-full flex items-center justify-center bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/80 border-2 border-dashed border-gray-300 dark:border-gray-700 hover:border-cyan-500 text-gray-500 dark:text-gray-400 hover:text-cyan-500 font-bold py-2 sm:py-3 px-4 rounded-lg transition-all duration-300">
-                    <PlusIcon />
-                    <span className="ml-2">Add New Task</span>
-                </button>
+
+                    <div className="flex justify-end space-x-2">
+                       <button onClick={() => setIsFormVisible(false)} className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md transition-colors">
+                        Cancel
+                      </button>
+                      <button onClick={handleAddTask} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md transition-colors">
+                        Add Task
+                      </button>
+                    </div>
+                  </div>
                 )}
+            </div>
+            <div>
+              {sortedAndFilteredTasks.map((task, index) => (
+                <TaskItem
+                  key={task.id}
+                  task={task}
+                  onDelete={requestDeleteTask}
+                  onUpdate={handleUpdateTask}
+                  onOpenSubtaskModal={handleOpenSubtaskModal}
+                  onDragStart={onDragStart}
+                  onDragOver={onDragOver}
+                  onDrop={onDrop}
+                  isDragging={draggedTask?.id === task.id}
+                  onSetSubtaskDueDate={handleSetSubtaskDueDate}
+                  onToggleTaskComplete={handleToggleTaskComplete}
+                  allTags={allTags}
+                  isCompactView={isCompactView}
+                  onMoveTask={handleMoveTask}
+                  taskIndex={index}
+                  totalTasks={sortedAndFilteredTasks.length}
+                  onSnoozeTask={handleSnoozeTask}
+                  isDraggable={sortOption === 'manual'}
+                  onUpdateSubtaskText={handleUpdateSubtaskText}
+                />
+              ))}
+              {sortedAndFilteredTasks.length === 0 && (
+                <p className="text-center text-gray-500 dark:text-gray-400 italic py-8">
+                    No active tasks. Add one to get started!
+                </p>
+              )}
             </div>
             </>
           )}
 
-          <div className="task-list">
-             {!isLoading && view === 'backlog' && (
-                <>
-                    {sortedAndFilteredTasks.map((task, index) => (
-                        <TaskItem
-                            key={task.id}
-                            task={task}
-                            onDelete={requestDeleteTask}
-                            onUpdate={handleUpdateTask}
-                            onOpenSubtaskModal={handleOpenSubtaskModal}
-                            onDragStart={onDragStart}
-                            onDragOver={onDragOver}
-                            onDrop={onDrop}
-                            isDragging={draggedTask?.id === task.id}
-                            onSetSubtaskDueDate={handleSetSubtaskDueDate}
-                            onToggleTaskComplete={handleToggleTaskComplete}
-                            allTags={allTags}
-                            isCompactView={isCompactView}
-                            onMoveTask={handleMoveTask}
-                            taskIndex={index}
-                            totalTasks={sortedAndFilteredTasks.length}
-                            onSnoozeTask={handleSnoozeTask}
-                            isDraggable={sortOption === 'manual'}
-                        />
+          {!isLoading && view === 'today' && (
+            <div className="space-y-4 animate-fade-in-down">
+              {incompleteTodaySubtasks.length > 0 && (
+                 <div>
+                    <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 px-1 pt-2 mb-2">To Do</h3>
+                    {incompleteTodaySubtasks.map((item, index) => (
+                      <TodaySubtaskItem
+                        key={item.subtask.id}
+                        item={{
+                            subtask: item.subtask,
+                            parentTaskTitle: item.parentTask.title,
+                            parentTaskDescription: item.parentTask.description,
+                            parentTaskId: item.parentTask.id,
+                        }}
+                        onToggleComplete={() => handleToggleTodaySubtaskComplete(item.subtask.id, item.parentTask.id)}
+                        onRemove={() => handleUnsetSubtaskDueDate(item.subtask.id, item.parentTask.id)}
+                        onDragStart={() => onTodayDragStart(item)}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={() => onTodayDrop(item)}
+                        isDragging={draggedTodayItem?.subtask.id === item.subtask.id}
+                        onMoveSubtask={handleMoveTodaySubtask}
+                        subtaskIndex={index}
+                        totalSubtasks={incompleteTodaySubtasks.length}
+                        onUpdateParentTaskDescription={handleUpdateParentTaskDescription}
+                        onUpdateSubtaskText={handleUpdateSubtaskText}
+                      />
                     ))}
-                    {tasks.filter(t => !t.completed).length > 0 && sortedAndFilteredTasks.length === 0 && (
-                        <div className="text-center py-10 px-4">
-                            <h2 className="text-xl sm:text-2xl font-semibold text-gray-400 dark:text-gray-500">No tasks match the selected filters.</h2>
-                            <p className="text-gray-500 dark:text-gray-600 mt-2">Try adjusting or clearing your filters.</p>
-                        </div>
-                    )}
-                    {tasks.filter(t => !t.completed && (!t.snoozeUntil || new Date(t.snoozeUntil) <= new Date())).length === 0 && (
-                         <div className="text-center py-10 px-4">
-                            <h2 className="text-xl sm:text-2xl font-semibold text-gray-400 dark:text-gray-500">Your backlog is empty.</h2>
-                            <p className="text-gray-500 dark:text-gray-600 mt-2">Add a new task, or check your snoozed tasks.</p>
-                        </div>
-                    )}
-                </>
-            )}
-
-            {!isLoading && view === 'snoozed' && (
-                <>
-                    {snoozedTasks.map((task, index) => (
-                         <TaskItem
-                            key={task.id}
-                            task={task}
-                            onDelete={requestDeleteTask}
-                            onUpdate={handleUpdateTask}
-                            onOpenSubtaskModal={handleOpenSubtaskModal}
-                            onDragStart={() => {}}
-                            onDragOver={() => {}}
-                            onDrop={() => {}}
-                            isDragging={false}
-                            onSetSubtaskDueDate={handleSetSubtaskDueDate}
-                            onToggleTaskComplete={handleToggleTaskComplete}
-                            allTags={allTags}
-                            isCompactView={false}
-                            onMoveTask={() => {}}
-                            taskIndex={index}
-                            totalTasks={snoozedTasks.length}
-                            onSnoozeTask={handleSnoozeTask}
-                            onUnsnoozeTask={handleUnsnoozeTask}
-                            isDraggable={false}
-                        />
+                 </div>
+              )}
+              {completedTodaySubtasks.length > 0 && (
+                 <div>
+                    <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 px-1 pt-2 mb-2">Completed Today</h3>
+                    {completedTodaySubtasks.map(item => (
+                       <TodaySubtaskItem
+                        key={item.subtask.id}
+                        item={{
+                            subtask: item.subtask,
+                            parentTaskTitle: item.parentTask.title,
+                            parentTaskDescription: item.parentTask.description,
+                            parentTaskId: item.parentTask.id,
+                        }}
+                        onToggleComplete={() => handleToggleTodaySubtaskComplete(item.subtask.id, item.parentTask.id)}
+                        onRemove={() => handleUnsetSubtaskDueDate(item.subtask.id, item.parentTask.id)}
+                        onDragStart={() => {}} onDragOver={() => {}} onDrop={() => {}}
+                        isDragging={false}
+                        onMoveSubtask={() => {}}
+                        subtaskIndex={-1}
+                        totalSubtasks={0}
+                        onUpdateParentTaskDescription={handleUpdateParentTaskDescription}
+                        onUpdateSubtaskText={handleUpdateSubtaskText}
+                      />
                     ))}
-                    {snoozedTasks.length === 0 && (
-                        <div className="text-center py-10 px-4">
-                            <h2 className="text-xl sm:text-2xl font-semibold text-gray-400 dark:text-gray-500">No snoozed tasks.</h2>
-                            <p className="text-gray-500 dark:text-gray-600 mt-2">You can snooze a task from your backlog.</p>
-                        </div>
-                    )}
-                </>
-            )}
-            
-            {!isLoading && view === 'archive' && (
-                <>
-                    {archivedTasks.map((task, index) => (
-                         <TaskItem
-                            key={task.id}
-                            task={task}
-                            onDelete={requestDeleteTask}
-                            onUpdate={handleUpdateTask}
-                            onOpenSubtaskModal={handleOpenSubtaskModal}
-                            onDragStart={() => {}}
-                            onDragOver={() => {}}
-                            onDrop={() => {}}
-                            isDragging={false}
-                            onSetSubtaskDueDate={handleSetSubtaskDueDate}
-                            onToggleTaskComplete={handleToggleTaskComplete}
-                            allTags={[]}
-                            isCompactView={false}
-                            onMoveTask={() => {}}
-                            taskIndex={index}
-                            totalTasks={archivedTasks.length}
-                            onSnoozeTask={handleSnoozeTask}
-                            isDraggable={false}
-                        />
-                    ))}
-                    {archivedTasks.length === 0 && (
-                        <div className="text-center py-10 px-4">
-                            <h2 className="text-xl sm:text-2xl font-semibold text-gray-400 dark:text-gray-500">The archive is empty.</h2>
-                            <p className="text-gray-500 dark:text-gray-600 mt-2">Complete a task in your backlog to see it here.</p>
-                        </div>
-                    )}
-                </>
-            )}
+                 </div>
+              )}
+              {todaySubtasks.length === 0 && (
+                 <p className="text-center text-gray-500 dark:text-gray-400 italic py-8">
+                    Nothing scheduled for today. Go to 'Manage Sub-tasks' to assign a date.
+                 </p>
+              )}
+            </div>
+          )}
 
-            {!isLoading && view === 'today' && (
-                 <>
-                    {incompleteTodaySubtasks.length > 0 && (
-                        <div>
-                            <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 px-1 pt-2 mb-2">To Do</h3>
-                            {incompleteTodaySubtasks.map((item, index) => (
-                                <TodaySubtaskItem
-                                    key={item.subtask.id}
-                                    item={{ 
-                                      subtask: item.subtask, 
-                                      parentTaskTitle: item.parentTask.title, 
-                                      parentTaskDescription: item.parentTask.description,
-                                      parentTaskId: item.parentTask.id,
-                                    }}
-                                    onToggleComplete={() => handleToggleTodaySubtaskComplete(item.subtask.id, item.parentTask.id)}
-                                    onRemove={() => handleUnsetSubtaskDueDate(item.subtask.id, item.parentTask.id)}
-                                    onDragStart={() => onTodayDragStart(item)}
-                                    onDragOver={onDragOver}
-                                    onDrop={() => onTodayDrop(item)}
-                                    isDragging={draggedTodayItem?.subtask.id === item.subtask.id}
-                                    onMoveSubtask={handleMoveTodaySubtask}
-                                    subtaskIndex={index}
-                                    totalSubtasks={incompleteTodaySubtasks.length}
-                                    onUpdateParentTaskDescription={handleUpdateParentTaskDescription}
-                                />
-                            ))}
-                        </div>
-                    )}
-                    
-                    {completedTodaySubtasks.length > 0 && (
-                       <div className="mt-8">
-                            <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 px-1 pt-2 mb-2">Completed</h3>
-                            {completedTodaySubtasks.map((item, index) => (
-                                <TodaySubtaskItem
-                                    key={item.subtask.id}
-                                    item={{ 
-                                      subtask: item.subtask, 
-                                      parentTaskTitle: item.parentTask.title,
-                                      parentTaskDescription: item.parentTask.description,
-                                      parentTaskId: item.parentTask.id,
-                                    }}
-                                    onToggleComplete={() => handleToggleTodaySubtaskComplete(item.subtask.id, item.parentTask.id)}
-                                    onRemove={() => handleUnsetSubtaskDueDate(item.subtask.id, item.parentTask.id)}
-                                    onDragStart={(e) => e.preventDefault()}
-                                    onDragOver={(e) => e.preventDefault()}
-                                    onDrop={(e) => e.preventDefault()}
-                                    isDragging={false}
-                                    onMoveSubtask={() => {}}
-                                    subtaskIndex={index}
-                                    totalSubtasks={completedTodaySubtasks.length}
-                                    onUpdateParentTaskDescription={handleUpdateParentTaskDescription}
-                                />
-                            ))}
-                        </div>
-                    )}
+          {!isLoading && view === 'snoozed' && (
+             <div className="space-y-4 animate-fade-in-down">
+                {snoozedTasks.map((task, index) => (
+                    <TaskItem
+                        key={task.id}
+                        task={task}
+                        onDelete={requestDeleteTask}
+                        onUpdate={handleUpdateTask}
+                        onOpenSubtaskModal={handleOpenSubtaskModal}
+                        onDragStart={()=>{}}
+                        onDragOver={()=>{}}
+                        onDrop={()=>{}}
+                        isDragging={false}
+                        onSetSubtaskDueDate={handleSetSubtaskDueDate}
+                        onToggleTaskComplete={handleToggleTaskComplete}
+                        allTags={allTags}
+                        isCompactView={false}
+                        onMoveTask={()=>{}}
+                        taskIndex={index}
+                        totalTasks={snoozedTasks.length}
+                        onSnoozeTask={handleSnoozeTask}
+                        onUnsnoozeTask={handleUnsnoozeTask}
+                        isDraggable={false}
+                        onUpdateSubtaskText={handleUpdateSubtaskText}
+                    />
+                ))}
+                {snoozedTasks.length === 0 && (
+                    <p className="text-center text-gray-500 dark:text-gray-400 italic py-8">
+                        No snoozed tasks.
+                    </p>
+                )}
+             </div>
+          )}
 
-                    {todaySubtasks.length === 0 ? (
-                        <div className="text-center py-10 px-4">
-                            <h2 className="text-xl sm:text-2xl font-semibold text-gray-400 dark:text-gray-500">Nothing scheduled for today.</h2>
-                            <p className="text-gray-500 dark:text-gray-600 mt-2">Go to the backlog and assign a due date to your sub-tasks.</p>
-                        </div>
-                    ) : null}
-                </>
-            )}
+          {!isLoading && view === 'archive' && (
+             <div className="space-y-4 animate-fade-in-down">
+                {archivedTasks.map((task, index) => (
+                    <TaskItem
+                        key={task.id}
+                        task={task}
+                        onDelete={requestDeleteTask}
+                        onUpdate={handleUpdateTask}
+                        onOpenSubtaskModal={handleOpenSubtaskModal}
+                        onDragStart={()=>{}}
+                        onDragOver={()=>{}}
+                        onDrop={()=>{}}
+                        isDragging={false}
+                        onSetSubtaskDueDate={handleSetSubtaskDueDate}
+                        onToggleTaskComplete={handleToggleTaskComplete}
+                        allTags={allTags}
+                        isCompactView={false}
+                        onMoveTask={()=>{}}
+                        taskIndex={index}
+                        totalTasks={archivedTasks.length}
+                        onSnoozeTask={()=>{}}
+                        isDraggable={false}
+                        onUpdateSubtaskText={() => {}}
+                    />
+                ))}
+                {archivedTasks.length === 0 && (
+                    <p className="text-center text-gray-500 dark:text-gray-400 italic py-8">
+                        No completed tasks in the archive yet.
+                    </p>
+                )}
+             </div>
+          )}
 
-            {!isLoading && view === 'stats' && <StatsView tasks={tasks} />}
-            {!isLoading && view === 'settings' && <SettingsView currentConfig={supabaseConfig} onSave={handleSaveSupabaseConfig} isOnlineMode={isOnlineMode} onToggleOnlineMode={handleToggleOnlineMode} onMigrateToLocal={handleMigrateToLocal} onMigrateToOnline={handleMigrateToOnline} />}
-          </div>
+          {!isLoading && view === 'stats' && <StatsView tasks={tasks} />}
+          {!isLoading && view === 'settings' && (
+             <SettingsView
+                currentConfig={supabaseConfig}
+                onSave={handleSaveSupabaseConfig}
+                isOnlineMode={isOnlineMode}
+                onToggleOnlineMode={handleToggleOnlineMode}
+                onMigrateToOnline={handleMigrateToOnline}
+                onMigrateToLocal={handleMigrateToLocal}
+             />
+          )}
+
         </main>
       </div>
-      {modalTask && <SubtaskModal task={modalTask} onClose={handleCloseModal} onUpdateTask={handleUpdateTask} onSetSubtaskDueDate={handleSetSubtaskDueDate} />}
-      
+
+      {modalTask && <SubtaskModal task={modalTask} onClose={handleCloseModal} onUpdateTask={handleUpdateTask} onSetSubtaskDueDate={handleSetSubtaskDueDate}/>}
+
       {isPasswordModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex justify-center items-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-sm p-4 m-2 sm:p-6 sm:m-4">
-            <h3 className="text-lg font-bold mb-4">Enter Supabase Password</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-              To {supabaseAction} your data, please enter the password for <span className="font-semibold">{supabaseConfig?.email}</span>.
-            </p>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handlePasswordConfirm()}
-              className="w-full bg-gray-100 dark:bg-gray-700 rounded-md px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              placeholder="Your Supabase password"
-              autoFocus
-            />
-            <div className="flex justify-end space-x-2">
-              <button
-                onClick={() => setIsPasswordModalOpen(false)}
-                className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handlePasswordConfirm}
-                className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md transition-colors"
-                disabled={isSupabaseLoading}
-              >
-                {isSupabaseLoading ? <SpinnerIcon /> : 'Confirm'}
-              </button>
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex justify-center items-center z-50 animate-fade-in-down" style={{ animationDuration: '0.2s' }}>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-sm p-6">
+                <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Enter Supabase Password</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">Enter the password for <strong>{supabaseConfig?.email}</strong>. This is not stored.</p>
+                <input
+                    type="password"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    onKeyPress={e => e.key === 'Enter' && handlePasswordConfirm()}
+                    className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white rounded-md px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    autoFocus
+                />
+                <div className="flex justify-end space-x-2">
+                    <button onClick={() => { setIsPasswordModalOpen(false); setPassword(''); setSupabaseAction(null); }} className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md transition-colors">Cancel</button>
+                    <button onClick={handlePasswordConfirm} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md transition-colors" disabled={isSupabaseLoading}>
+                       {isSupabaseLoading ? <SpinnerIcon className="h-5 w-5"/> : 'Confirm'}
+                    </button>
+                </div>
             </div>
-          </div>
         </div>
       )}
+      
       <ConfirmationModal
         isOpen={confirmationState.isOpen}
         onClose={closeConfirmationModal}
