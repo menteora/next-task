@@ -108,7 +108,7 @@ const App: React.FC = () => {
     title: '',
     message: '',
     confirmText: 'Confirm',
-    confirmClass: 'bg-cyan-600 hover:bg-cyan-700',
+    confirmClass: 'bg-indigo-600 hover:bg-indigo-700',
     onConfirm: () => {},
   });
 
@@ -1022,7 +1022,7 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
       title: 'Confirm Import from Cloud',
       message: 'This will overwrite all your local tasks with the latest version from the cloud. Are you sure you want to continue?',
       confirmText: 'Import & Overwrite',
-      confirmClass: 'bg-cyan-600 hover:bg-cyan-700',
+      confirmClass: 'bg-indigo-600 hover:bg-indigo-700',
       onConfirm: () => {
         triggerSupabaseAction('import');
         closeConfirmationModal();
@@ -1166,7 +1166,7 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
       <div className="container mx-auto max-w-3xl px-2 py-4 sm:px-4 sm:py-8">
         <header className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 sm:mb-8">
           <div className="w-full">
-            <h1 className="text-4xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-teal-600 dark:from-cyan-400 dark:to-teal-500">
+            <h1 className="text-4xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-blue-600 dark:from-indigo-400 dark:to-blue-500">
               Next Task
             </h1>
             <p className="text-gray-500 dark:text-gray-400 mt-2 text-sm sm:text-base">Organize your work, focus on the next action.</p>
@@ -1250,42 +1250,42 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
         <div className="flex justify-center mb-6 sm:mb-8 bg-gray-200 dark:bg-gray-800 rounded-lg p-1">
             <button
                 onClick={() => setView('backlog')}
-                className={`flex-1 py-2 px-1 sm:px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'backlog' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
+                className={`flex-1 py-2 px-1 sm:px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'backlog' ? 'bg-indigo-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
                 aria-label="Backlog View"
             >
                 <ListIcon />
             </button>
             <button
                 onClick={() => setView('today')}
-                className={`flex-1 py-2 px-1 sm:px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'today' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
+                className={`flex-1 py-2 px-1 sm:px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'today' ? 'bg-indigo-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
                 aria-label="Today View"
             >
                 <CalendarIcon />
             </button>
             <button
                 onClick={() => setView('snoozed')}
-                className={`flex-1 py-2 px-1 sm:px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'snoozed' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
+                className={`flex-1 py-2 px-1 sm:px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'snoozed' ? 'bg-indigo-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
                 aria-label="Snoozed View"
             >
                 <SnoozeIcon />
             </button>
              <button
                 onClick={() => setView('archive')}
-                className={`flex-1 py-2 px-1 sm:px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'archive' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
+                className={`flex-1 py-2 px-1 sm:px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'archive' ? 'bg-indigo-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
                 aria-label="Archive View"
             >
                 <ArchiveIcon />
             </button>
             <button
                 onClick={() => setView('stats')}
-                className={`flex-1 py-2 px-1 sm:px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'stats' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
+                className={`flex-1 py-2 px-1 sm:px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'stats' ? 'bg-indigo-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
                 aria-label="Stats View"
             >
                 <BarChartIcon />
             </button>
             <button
                 onClick={() => setView('settings')}
-                className={`flex-1 py-2 px-1 sm:px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'settings' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
+                className={`flex-1 py-2 px-1 sm:px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'settings' ? 'bg-indigo-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
                 aria-label="Settings View"
             >
                 <SettingsIcon />
@@ -1295,7 +1295,7 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
         <main>
           {isLoading && (
               <div className="flex justify-center items-center p-10">
-                  <SpinnerIcon className="h-10 w-10 text-cyan-500" />
+                  <SpinnerIcon className="h-10 w-10 text-indigo-500" />
               </div>
           )}
           {!isLoading && view === 'backlog' && (
@@ -1311,7 +1311,7 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
                                     onClick={() => handleTagClick(tag)}
                                     className={`px-3 py-1 text-sm rounded-full transition-colors ${
                                         selectedTags.includes(tag)
-                                            ? 'bg-cyan-500 text-white font-semibold'
+                                            ? 'bg-indigo-600 text-white font-semibold'
                                             : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'
                                     }`}
                                 >
@@ -1320,7 +1320,7 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
                             ))}
                         </div>
                         {selectedTags.length > 0 && (
-                            <button onClick={() => setSelectedTags([])} className="text-xs text-cyan-600 dark:text-cyan-500 hover:underline mt-4">
+                            <button onClick={() => setSelectedTags([])} className="text-xs text-indigo-600 dark:text-indigo-500 hover:underline mt-4">
                                 Clear filters
                             </button>
                         )}
@@ -1334,7 +1334,7 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
                                 id="sort-order"
                                 value={sortOption}
                                 onChange={e => setSortOption(e.target.value as SortOption)}
-                                className="appearance-none bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-colors"
+                                className="appearance-none bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
                                 aria-label="Sort tasks"
                             >
                                 <option value="manual">Ordina: Manuale</option>
@@ -1360,7 +1360,7 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
                 {!isFormVisible ? (
                   <button
                     onClick={() => setIsFormVisible(true)}
-                    className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center transition-all shadow-md hover:shadow-lg"
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center transition-all shadow-md hover:shadow-lg"
                   >
                     <PlusIcon />
                     <span className="ml-2">Add New Task</span>
@@ -1372,7 +1372,7 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
                       value={newTaskTitle}
                       onChange={(e) => setNewTaskTitle(e.target.value)}
                       placeholder="Task Title"
-                      className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-500 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-500 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       autoFocus
                     />
                     <MarkdownInput 
@@ -1395,7 +1395,7 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
                        <button onClick={() => setIsFormVisible(false)} className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md transition-colors">
                         Cancel
                       </button>
-                      <button onClick={handleAddTask} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md transition-colors">
+                      <button onClick={handleAddTask} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition-colors">
                         Add Task
                       </button>
                     </div>
@@ -1591,12 +1591,12 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     onKeyPress={e => e.key === 'Enter' && handlePasswordConfirm()}
-                    className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white rounded-md px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white rounded-md px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     autoFocus
                 />
                 <div className="flex justify-end space-x-2">
                     <button onClick={() => { setIsPasswordModalOpen(false); setPassword(''); setSupabaseAction(null); }} className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md transition-colors">Cancel</button>
-                    <button onClick={handlePasswordConfirm} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md transition-colors" disabled={isSupabaseLoading}>
+                    <button onClick={handlePasswordConfirm} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition-colors" disabled={isSupabaseLoading}>
                        {isSupabaseLoading ? <SpinnerIcon className="h-5 w-5"/> : 'Confirm'}
                     </button>
                 </div>

@@ -176,7 +176,7 @@ CREATE INDEX idx_online_subtasks_user_id ON public.online_subtasks(user_id);
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="https://your-project-id.supabase.co"
-              className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-500 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-500 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
           <div>
@@ -189,7 +189,7 @@ CREATE INDEX idx_online_subtasks_user_id ON public.online_subtasks(user_id);
               value={anonKey}
               onChange={(e) => setAnonKey(e.target.value)}
               placeholder="your-public-anon-key"
-              className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-500 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-500 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
            <div>
@@ -202,13 +202,13 @@ CREATE INDEX idx_online_subtasks_user_id ON public.online_subtasks(user_id);
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="your-supabase-user@email.com"
-              className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-500 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-500 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Your password is only required on first login and is never stored in the browser.</p>
           </div>
           <button
             onClick={handleSave}
-            className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md transition-colors"
+            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition-colors"
           >
             Save Configuration
           </button>
@@ -249,7 +249,7 @@ CREATE INDEX idx_online_subtasks_user_id ON public.online_subtasks(user_id);
                         <button
                             onClick={onMigrateToOnline}
                             disabled={isOnlineMode || !currentConfig}
-                            className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             Migrate Local to Online
                         </button>
@@ -289,7 +289,7 @@ CREATE INDEX idx_online_subtasks_user_id ON public.online_subtasks(user_id);
                             onChange={(e) => onToggleOnlineMode(e.target.checked)}
                             disabled={!currentConfig}
                         />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-cyan-300 dark:peer-focus:ring-cyan-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-cyan-600"></div>
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
                     </label>
                 </div>
                 {!currentConfig && <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2">Please configure Supabase settings below to enable online mode.</p>}

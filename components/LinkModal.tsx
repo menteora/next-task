@@ -48,7 +48,7 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onConfirm }) => 
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           onKeyPress={handleKeyPress}
-          className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white rounded-md px-3 py-2 mb-6 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+          className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white rounded-md px-3 py-2 mb-6 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           placeholder="https://example.com"
           autoFocus
         />
@@ -61,7 +61,7 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onConfirm }) => 
           </button>
           <button
             onClick={handleConfirm}
-            className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md transition-colors"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition-colors"
           >
             Add Link
           </button>
