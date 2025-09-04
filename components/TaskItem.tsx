@@ -317,10 +317,10 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
                 >
                   <CalendarPlusIcon />
                 </button>
-                <span className="ml-2 text-gray-600 dark:text-gray-300 truncate">{nextAction.text}</span>
+                <span className="ml-2 text-gray-600 dark:text-gray-300 break-words">{nextAction.text}</span>
               </div>
               {nextAction.dueDate && (
-                <div className="self-start sm:self-center flex-shrink-0">
+                <div className="self-end sm:self-center flex-shrink-0">
                   <span className="flex items-center text-xs text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded-full whitespace-nowrap">
                     <CalendarIcon className="h-4 w-4 mr-1" />
                     {new Date(

@@ -64,16 +64,16 @@ const TodaySubtaskItem: React.FC<TodaySubtaskItemProps> = ({ item, onToggleCompl
         className={`bg-white dark:bg-gray-800 p-2 sm:p-3 rounded-lg shadow-md mb-3 flex flex-col transition-all ${isDragging ? 'opacity-50' : ''} ${subtask.completed ? 'opacity-70' : ''}`}
     >
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between">
-        <div className="flex items-center flex-grow min-w-0">
+        <div className="flex items-start flex-grow min-w-0">
           {!subtask.completed && (
-            <div className="cursor-grab p-1 mr-1 sm:mr-2">
+            <div className="cursor-grab p-1 mr-1 sm:mr-2 mt-0.5">
               <GripVerticalIcon />
             </div>
           )}
           <input
             type="checkbox"
             id={`today-subtask-${subtask.id}`}
-            className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-gray-200 dark:bg-gray-700 text-teal-600 dark:text-teal-500 focus:ring-teal-500 dark:focus:ring-teal-600 cursor-pointer flex-shrink-0"
+            className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-gray-200 dark:bg-gray-700 text-teal-600 dark:text-teal-500 focus:ring-teal-500 dark:focus:ring-teal-600 cursor-pointer flex-shrink-0 mt-1"
             checked={subtask.completed}
             onChange={onToggleComplete}
           />
