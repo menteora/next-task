@@ -305,7 +305,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
             </button>
           </div>
         ) : nextAction ? (
-          <div className="flex flex-col sm:flex-row items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between">
             <div className="flex items-center flex-grow mb-2 sm:mb-0 sm:mr-2">
               <button
                 onClick={() => onSetSubtaskDueDate(nextAction.id, task.id, getTodayDateString())}
@@ -329,7 +329,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
                 </span>
               )}
             </div>
-            <div className="flex-shrink-0 self-end sm:self-center">
+            <div className="flex-shrink-0 self-start sm:self-center">
               <span className="text-xs font-semibold text-teal-700 dark:text-teal-400 bg-teal-100 dark:bg-teal-900/50 px-2 py-1 rounded-full">
                 NEXT ACTION
               </span>
