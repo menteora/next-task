@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Task } from '../types';
-import { TrashIcon, ChevronDownIcon, GripVerticalIcon, EditIcon, CalendarPlusIcon, RepeatIcon, CalendarIcon, ChevronUpIcon, ChevronDoubleUpIcon, ChevronDoubleDownIcon, ClockIcon, SnoozeIcon } from './icons';
+import { TrashIcon, ChevronDownIcon, GripVerticalIcon, EditIcon, CalendarPlusIcon, RepeatIcon, CalendarIcon, ChevronUpIcon, ChevronDoubleUpIcon, ChevronDoubleDownIcon, ClockIcon, SnoozeIcon, CheckIcon } from './icons';
 import MarkdownInput from './MarkdownInput';
 
 interface TaskItemProps {
@@ -295,14 +295,26 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
       
       <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
         {task.completed && task.completionDate ? (
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
-            <p className="text-green-600 dark:text-green-500 font-semibold mb-2 sm:mb-0">Completed on: {new Date(task.completionDate).toLocaleDateString()}</p>
-            <button
-              onClick={() => onToggleTaskComplete(task.id)}
-              className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-1 px-3 rounded-md text-sm transition-colors self-end sm:self-center"
-            >
-              Re-open Task
-            </button>
+          <div>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+              <p className="text-green-600 dark:text-green-500 font-semibold mb-2 sm:mb-0">Completed on: {new Date(task.completionDate).toLocaleDateString()}</p>
+              <button
+                onClick={() => onToggleTaskComplete(task.id)}
+                className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-1 px-3 rounded-md text-sm transition-colors self-end sm:self-center"
+              >
+                Re-open Task
+              </button>
+            </div>
+            {task.subtasks.length > 0 && (
+              <ul className="space-y-2 mt-4 pl-1">
+                {task.subtasks.map(subtask => (
+                  <li key={subtask.id} className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                    <CheckIcon className="h-4 w-4 mr-2 text-green-500 flex-shrink-0" />
+                    <span className="line-through">{subtask.text}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         ) : nextAction ? (
           <div className="flex items-stretch gap-3">
