@@ -9,6 +9,7 @@ import ConfirmationModal from './components/ConfirmationModal';
 import { createSupabaseClient } from './supabaseClient';
 import { PlusIcon, SunIcon, MoonIcon, ListIcon, CalendarIcon, BarChartIcon, ArrowsPointingInIcon, ArrowsPointingOutIcon, DownloadIcon, UploadIcon, SettingsIcon, CloudUploadIcon, CloudDownloadIcon, SpinnerIcon, LogOutIcon, ArchiveIcon, SnoozeIcon, ChevronDownIcon } from './components/icons';
 import { Session, SupabaseClient } from '@supabase/supabase-js';
+import MarkdownInput from './components/MarkdownInput';
 
 type TodayItem = { subtask: Subtask, parentTask: Task };
 type Theme = 'light' | 'dark';
@@ -1226,42 +1227,42 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
         <div className="flex justify-center mb-6 sm:mb-8 bg-gray-200 dark:bg-gray-800 rounded-lg p-1">
             <button
                 onClick={() => setView('backlog')}
-                className={`w-1/6 py-2 px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'backlog' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
+                className={`flex-1 py-2 px-1 sm:px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'backlog' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
                 aria-label="Backlog View"
             >
                 <ListIcon />
             </button>
             <button
                 onClick={() => setView('today')}
-                className={`w-1/6 py-2 px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'today' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
+                className={`flex-1 py-2 px-1 sm:px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'today' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
                 aria-label="Today View"
             >
                 <CalendarIcon />
             </button>
             <button
                 onClick={() => setView('snoozed')}
-                className={`w-1/6 py-2 px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'snoozed' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
+                className={`flex-1 py-2 px-1 sm:px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'snoozed' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
                 aria-label="Snoozed View"
             >
                 <SnoozeIcon />
             </button>
              <button
                 onClick={() => setView('archive')}
-                className={`w-1/6 py-2 px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'archive' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
+                className={`flex-1 py-2 px-1 sm:px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'archive' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
                 aria-label="Archive View"
             >
                 <ArchiveIcon />
             </button>
             <button
                 onClick={() => setView('stats')}
-                className={`w-1/6 py-2 px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'stats' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
+                className={`flex-1 py-2 px-1 sm:px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'stats' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
                 aria-label="Stats View"
             >
                 <BarChartIcon />
             </button>
             <button
                 onClick={() => setView('settings')}
-                className={`w-1/6 py-2 px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'settings' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
+                className={`flex-1 py-2 px-1 sm:px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'settings' ? 'bg-cyan-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
                 aria-label="Settings View"
             >
                 <SettingsIcon />
@@ -1343,13 +1344,14 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
                     placeholder="Task Title"
                     className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-500 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-cyan-500"
                     />
-                    <textarea
-                    value={newTaskDescription}
-                    onChange={(e) => setNewTaskDescription(e.target.value)}
-                    placeholder="Description... use #tag to add tags"
-                    rows={3}
-                    className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-500 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                    />
+                    <div className="mb-3">
+                        <MarkdownInput
+                          value={newTaskDescription}
+                          onChange={setNewTaskDescription}
+                          placeholder="Description... use #tag to add tags"
+                          rows={3}
+                        />
+                    </div>
                     {allTags.length > 0 && (
                         <div className="mb-3">
                             <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Suggested tags:</h4>
