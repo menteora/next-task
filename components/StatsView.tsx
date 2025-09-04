@@ -5,7 +5,7 @@ interface StatsViewProps {
   tasks: Task[];
 }
 
-const StatsCard = ({ title, value, colorClass = 'text-cyan-500 dark:text-cyan-400' }: { title: string, value: number | string, colorClass?: string }) => (
+const StatsCard = ({ title, value, colorClass = 'text-indigo-500 dark:text-indigo-400' }: { title: string, value: number | string, colorClass?: string }) => (
   <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md flex flex-col items-center justify-center">
     <span className={`text-3xl sm:text-4xl font-bold ${colorClass}`}>{value}</span>
     <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mt-2 text-center">{title}</p>
@@ -92,7 +92,7 @@ const StatsView: React.FC<StatsViewProps> = ({ tasks }) => {
                         <div key={date} className="flex flex-col items-center justify-end flex-1 h-full">
                            <span className="text-xs font-bold text-gray-600 dark:text-gray-300">{count}</span>
                            <div
-                             className="w-full bg-cyan-500 dark:bg-cyan-400 rounded-t-md mt-1"
+                             className="w-full bg-indigo-500 dark:bg-indigo-400 rounded-t-md mt-1"
                              style={{ height: `${height}%` }}
                              title={`${count} completed on ${new Date(date + 'T00:00:00').toLocaleDateString()}`}
                            ></div>
@@ -112,7 +112,7 @@ const StatsView: React.FC<StatsViewProps> = ({ tasks }) => {
                 <ul className="space-y-3">
                     {stats.topTags.map(([tag, count]) => (
                         <li key={tag} className="flex justify-between items-center text-gray-700 dark:text-gray-300">
-                           <span className="font-semibold bg-cyan-100 dark:bg-cyan-900/50 text-cyan-700 dark:text-cyan-400 rounded px-2 py-1">{tag}</span>
+                           <span className="font-semibold bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-400 rounded px-2 py-1">{tag}</span>
                            <span className="font-bold">{count} {count > 1 ? 'uses' : 'use'}</span>
                         </li>
                     ))}

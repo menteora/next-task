@@ -117,7 +117,7 @@ const MarkdownInput: React.FC<MarkdownInputProps> = ({ value, onChange, placehol
         placeholder={placeholder}
         rows={rows}
         autoFocus={autoFocus}
-        className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white text-sm rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+        className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white text-sm rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
       />
       <LinkModal
         isOpen={isLinkModalOpen}

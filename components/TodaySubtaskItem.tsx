@@ -117,7 +117,7 @@ const TodaySubtaskItem: React.FC<TodaySubtaskItemProps> = ({ item, onToggleCompl
                         if (e.key === 'Enter') handleSaveEdit();
                         if (e.key === 'Escape') handleCancelEdit();
                     }}
-                    className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               ) : (
                 <label htmlFor={`today-subtask-${subtask.id}`} className={`text-gray-700 dark:text-gray-200 cursor-pointer break-words ${subtask.completed ? 'line-through text-gray-500 dark:text-gray-500' : ''}`}>
@@ -130,7 +130,7 @@ const TodaySubtaskItem: React.FC<TodaySubtaskItemProps> = ({ item, onToggleCompl
                   </span>
               )}
               <div className="flex items-center flex-wrap gap-x-2 mt-0.5">
-                  <p className="text-xs text-cyan-600 dark:text-cyan-500 truncate">{parentTaskTitle}</p>
+                  <p className="text-xs text-indigo-600 dark:text-indigo-500 truncate">{parentTaskTitle}</p>
                   {overdueDays > 0 && (
                       <span className="text-xs font-semibold text-red-500 dark:text-red-400 bg-red-100 dark:bg-red-900/50 px-1.5 py-0.5 rounded-full whitespace-nowrap">
                           {overdueDays} {overdueDays === 1 ? 'giorno in ritardo' : 'giorni in ritardo'}
@@ -142,16 +142,16 @@ const TodaySubtaskItem: React.FC<TodaySubtaskItemProps> = ({ item, onToggleCompl
         <div className="flex items-center justify-end flex-wrap gap-2 mt-2 sm:mt-0 sm:ml-4 flex-shrink-0">
           {!subtask.completed && (
               <div className="flex items-center border border-gray-200 dark:border-gray-600 rounded-md">
-                  <button onClick={() => onMoveSubtask(subtask.id, 'top')} disabled={isAtTop} className="p-1.5 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-cyan-500 dark:text-gray-400 dark:hover:text-cyan-400 transition-colors" title="Move to top" aria-label="Move subtask to top"><ChevronDoubleUpIcon className="h-4 w-4" /></button>
-                  <button onClick={() => onMoveSubtask(subtask.id, 'up')} disabled={isAtTop} className="p-1.5 border-l border-gray-200 dark:border-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-cyan-500 dark:text-gray-400 dark:hover:text-cyan-400 transition-colors" title="Move up" aria-label="Move subtask up"><ChevronUpIcon className="h-4 w-4" /></button>
-                  <button onClick={() => onMoveSubtask(subtask.id, 'down')} disabled={isAtBottom} className="p-1.5 border-l border-gray-200 dark:border-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-cyan-500 dark:text-gray-400 dark:hover:text-cyan-400 transition-colors" title="Move down" aria-label="Move subtask down"><ChevronDownIcon className="h-4 w-4" /></button>
-                  <button onClick={() => onMoveSubtask(subtask.id, 'bottom')} disabled={isAtBottom} className="p-1.5 border-l border-gray-200 dark:border-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-cyan-500 dark:text-gray-400 dark:hover:text-cyan-400 transition-colors" title="Move to bottom" aria-label="Move subtask to bottom"><ChevronDoubleDownIcon className="h-4 w-4" /></button>
+                  <button onClick={() => onMoveSubtask(subtask.id, 'top')} disabled={isAtTop} className="p-1.5 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-indigo-500 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors" title="Move to top" aria-label="Move subtask to top"><ChevronDoubleUpIcon className="h-4 w-4" /></button>
+                  <button onClick={() => onMoveSubtask(subtask.id, 'up')} disabled={isAtTop} className="p-1.5 border-l border-gray-200 dark:border-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-indigo-500 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors" title="Move up" aria-label="Move subtask up"><ChevronUpIcon className="h-4 w-4" /></button>
+                  <button onClick={() => onMoveSubtask(subtask.id, 'down')} disabled={isAtBottom} className="p-1.5 border-l border-gray-200 dark:border-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-indigo-500 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors" title="Move down" aria-label="Move subtask down"><ChevronDownIcon className="h-4 w-4" /></button>
+                  <button onClick={() => onMoveSubtask(subtask.id, 'bottom')} disabled={isAtBottom} className="p-1.5 border-l border-gray-200 dark:border-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-indigo-500 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors" title="Move to bottom" aria-label="Move subtask to bottom"><ChevronDoubleDownIcon className="h-4 w-4" /></button>
               </div>
           )}
           {!subtask.completed && (
             <button 
               onClick={handleStartEdit} 
-              className="text-gray-400 dark:text-gray-500 hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors p-1"
+              className="text-gray-400 dark:text-gray-500 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors p-1"
               aria-label="Edit subtask"
               title="Edit subtask"
             >
@@ -161,7 +161,7 @@ const TodaySubtaskItem: React.FC<TodaySubtaskItemProps> = ({ item, onToggleCompl
           {parentTaskDescription && (
             <button 
               onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)} 
-              className="text-gray-400 dark:text-gray-500 hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors p-1"
+              className="text-gray-400 dark:text-gray-500 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors p-1"
               aria-label="Toggle parent task description"
               title="Toggle parent task description"
             >
@@ -192,7 +192,7 @@ const TodaySubtaskItem: React.FC<TodaySubtaskItemProps> = ({ item, onToggleCompl
                 <button onClick={() => setIsEditingDescription(false)} className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-1 px-3 rounded-md text-sm transition-colors">
                   Cancel
                 </button>
-                <button onClick={handleSaveDescription} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-1 px-3 rounded-md text-sm transition-colors">
+                <button onClick={handleSaveDescription} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1 px-3 rounded-md text-sm transition-colors">
                   Save
                 </button>
               </div>
@@ -202,7 +202,7 @@ const TodaySubtaskItem: React.FC<TodaySubtaskItemProps> = ({ item, onToggleCompl
               <div className="prose max-w-none text-sm flex-grow">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{parentTaskDescription || 'No description.'}</ReactMarkdown>
               </div>
-              <button onClick={() => setIsEditingDescription(true)} className="text-gray-400 dark:text-gray-500 hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors p-1 flex-shrink-0 ml-4 -mt-1" aria-label="Edit description">
+              <button onClick={() => setIsEditingDescription(true)} className="text-gray-400 dark:text-gray-500 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors p-1 flex-shrink-0 ml-4 -mt-1" aria-label="Edit description">
                 <EditIcon className="h-4 w-4" />
               </button>
             </div>

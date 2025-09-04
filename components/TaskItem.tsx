@@ -160,7 +160,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
                 type="text"
                 value={editingTitle}
                 onChange={(e) => setEditingTitle(e.target.value)}
-                className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white font-bold text-lg rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white font-bold text-lg rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
                 <MarkdownInput
                   value={editingDescription}
@@ -203,7 +203,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
                                 value={editingSnoozeUntil || ''}
                                 onChange={(e) => setEditingSnoozeUntil(e.target.value)}
                                 min={getTodayDateString()}
-                                className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                                className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             />
                             {editingSnoozeUntil && (
                                 <button onClick={() => setEditingSnoozeUntil(undefined)} className="text-xs text-gray-500 hover:text-red-500">Clear</button>
@@ -215,7 +215,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
             ) : (
                 <div>
                     <div className="flex items-center flex-wrap gap-2 text-gray-700 dark:text-gray-300">
-                        <h3 className={`font-bold text-lg text-cyan-600 dark:text-cyan-400 ${task.completed ? 'line-through' : ''}`}>{task.title}</h3>
+                        <h3 className={`font-bold text-lg text-indigo-600 dark:text-indigo-400 ${task.completed ? 'line-through' : ''}`}>{task.title}</h3>
                         {task.recurring && !task.completed && <RepeatIcon />}
                         {lastTouchedDaysAgo !== null && !task.completed && (
                             <span className="flex items-center text-xs text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded-full font-medium whitespace-nowrap">
@@ -225,7 +225,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
                         )}
                     </div>
                     {task.description && (
-                      <button onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)} className="mt-2 flex items-center text-xs text-gray-500 dark:text-gray-400 hover:text-cyan-600 dark:hover:text-cyan-400 font-medium">
+                      <button onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)} className="mt-2 flex items-center text-xs text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium">
                           {isDescriptionExpanded ? 'Nascondi Descrizione' : 'Mostra Descrizione'}
                           {isDescriptionExpanded ? <ChevronUpIcon className="h-4 w-4 ml-1" /> : <ChevronDownIcon className="h-4 w-4 ml-1" />}
                       </button>
@@ -240,16 +240,16 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
                     <GripVerticalIcon />
                 </div>
                  <div className="flex items-center border border-gray-200 dark:border-gray-700 rounded-md">
-                    <button onClick={() => onMoveTask(task.id, 'top')} disabled={isAtTop} className="p-1.5 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-cyan-500 dark:text-gray-400 dark:hover:text-cyan-400 transition-colors" title="Move to top" aria-label="Move task to top"><ChevronDoubleUpIcon /></button>
-                    <button onClick={() => onMoveTask(task.id, 'up')} disabled={isAtTop} className="p-1.5 border-l border-gray-200 dark:border-gray-700 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-cyan-500 dark:text-gray-400 dark:hover:text-cyan-400 transition-colors" title="Move up" aria-label="Move task up"><ChevronUpIcon /></button>
-                    <button onClick={() => onMoveTask(task.id, 'down')} disabled={isAtBottom} className="p-1.5 border-l border-gray-200 dark:border-gray-700 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-cyan-500 dark:text-gray-400 dark:hover:text-cyan-400 transition-colors" title="Move down" aria-label="Move task down"><ChevronDownIcon /></button>
-                    <button onClick={() => onMoveTask(task.id, 'bottom')} disabled={isAtBottom} className="p-1.5 border-l border-gray-200 dark:border-gray-700 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-cyan-500 dark:text-gray-400 dark:hover:text-cyan-400 transition-colors" title="Move to bottom" aria-label="Move task to bottom"><ChevronDoubleDownIcon /></button>
+                    <button onClick={() => onMoveTask(task.id, 'top')} disabled={isAtTop} className="p-1.5 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-indigo-500 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors" title="Move to top" aria-label="Move task to top"><ChevronDoubleUpIcon /></button>
+                    <button onClick={() => onMoveTask(task.id, 'up')} disabled={isAtTop} className="p-1.5 border-l border-gray-200 dark:border-gray-700 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-indigo-500 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors" title="Move up" aria-label="Move task up"><ChevronUpIcon /></button>
+                    <button onClick={() => onMoveTask(task.id, 'down')} disabled={isAtBottom} className="p-1.5 border-l border-gray-200 dark:border-gray-700 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-indigo-500 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors" title="Move down" aria-label="Move task down"><ChevronDownIcon /></button>
+                    <button onClick={() => onMoveTask(task.id, 'bottom')} disabled={isAtBottom} className="p-1.5 border-l border-gray-200 dark:border-gray-700 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-indigo-500 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors" title="Move to bottom" aria-label="Move task to bottom"><ChevronDoubleDownIcon /></button>
                 </div>
               </>
             )}
             {isEditing ? (
                 <div className="flex items-center space-x-2">
-                    <button onClick={handleSave} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-1 px-3 rounded-md text-sm transition-colors">
+                    <button onClick={handleSave} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1 px-3 rounded-md text-sm transition-colors">
                         Save
                     </button>
                     <button onClick={handleCancel} className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-1 px-3 rounded-md text-sm transition-colors">
@@ -279,7 +279,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
                     </div>
                     <button
                         onClick={() => setIsEditing(true)}
-                        className="text-gray-400 dark:text-gray-500 hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors p-1"
+                        className="text-gray-400 dark:text-gray-500 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors p-1"
                         aria-label={`Edit task ${task.title}`}
                     >
                         <EditIcon />
@@ -342,7 +342,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
           </div>
         ) : nextAction ? (
           <div className="flex items-stretch gap-3">
-            <div className="w-1 bg-teal-500 dark:bg-teal-600 rounded-full flex-shrink-0" aria-hidden="true"></div>
+            <div className="w-1 bg-amber-500 dark:bg-amber-600 rounded-full flex-shrink-0" aria-hidden="true"></div>
             <div className="flex-grow flex flex-col sm:flex-row sm:items-center justify-between min-w-0 py-1">
               <div className="flex items-center flex-grow mb-2 sm:mb-0 sm:mr-2 min-w-0">
                 <button
@@ -365,14 +365,14 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
                         if (e.key === 'Enter') handleSaveNextAction();
                         if (e.key === 'Escape') handleCancelEditNextAction();
                       }}
-                      className="ml-2 w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      className="ml-2 w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                 ) : nextAction ? (
                   <div className="flex items-center min-w-0">
                     <span className="ml-2 text-gray-600 dark:text-gray-300 break-words">{nextAction.text}</span>
                     <button
                         onClick={handleStartEditNextAction}
-                        className="ml-2 text-gray-400 dark:text-gray-500 hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors p-1 flex-shrink-0"
+                        className="ml-2 text-gray-400 dark:text-gray-500 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors p-1 flex-shrink-0"
                         aria-label={`Edit next action subtask: ${nextAction.text}`}
                         title="Edit next action"
                     >
@@ -415,7 +415,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
       </div>
 
       {!task.completed && (
-        <button onClick={() => onOpenSubtaskModal(task)} className="mt-4 text-sm text-cyan-600 dark:text-cyan-500 hover:text-cyan-700 dark:hover:text-cyan-400 self-start flex items-center">
+        <button onClick={() => onOpenSubtaskModal(task)} className="mt-4 text-sm text-indigo-600 dark:text-indigo-500 hover:text-indigo-700 dark:hover:text-indigo-400 self-start flex items-center">
             Manage Sub-tasks ({task.subtasks.length}) <ChevronDownIcon className="h-5 w-5 ml-1"/>
         </button>
       )}

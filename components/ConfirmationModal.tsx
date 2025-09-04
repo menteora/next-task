@@ -19,7 +19,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   message,
   confirmButtonText = 'Confirm',
   cancelButtonText = 'Cancel',
-  confirmButtonClass = 'bg-cyan-600 hover:bg-cyan-700',
+  confirmButtonClass = 'bg-indigo-600 hover:bg-indigo-700',
 }) => {
   if (!isOpen) return null;
 
