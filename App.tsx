@@ -1502,7 +1502,11 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
                             {incompleteTodaySubtasks.map((item, index) => (
                                 <TodaySubtaskItem
                                     key={item.subtask.id}
-                                    item={{ subtask: item.subtask, parentTaskTitle: item.parentTask.title }}
+                                    item={{ 
+                                      subtask: item.subtask, 
+                                      parentTaskTitle: item.parentTask.title, 
+                                      parentTaskDescription: item.parentTask.description 
+                                    }}
                                     onToggleComplete={() => handleToggleTodaySubtaskComplete(item.subtask.id, item.parentTask.id)}
                                     onRemove={() => handleUnsetSubtaskDueDate(item.subtask.id, item.parentTask.id)}
                                     onDragStart={() => onTodayDragStart(item)}
@@ -1523,7 +1527,11 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
                             {completedTodaySubtasks.map((item, index) => (
                                 <TodaySubtaskItem
                                     key={item.subtask.id}
-                                    item={{ subtask: item.subtask, parentTaskTitle: item.parentTask.title }}
+                                    item={{ 
+                                      subtask: item.subtask, 
+                                      parentTaskTitle: item.parentTask.title,
+                                      parentTaskDescription: item.parentTask.description
+                                    }}
                                     onToggleComplete={() => handleToggleTodaySubtaskComplete(item.subtask.id, item.parentTask.id)}
                                     onRemove={() => handleUnsetSubtaskDueDate(item.subtask.id, item.parentTask.id)}
                                     onDragStart={(e) => e.preventDefault()}
