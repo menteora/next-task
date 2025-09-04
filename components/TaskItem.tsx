@@ -24,9 +24,10 @@ interface TaskItemProps {
   onSnoozeTask: (taskId: string, duration: 'day' | 'week' | 'month') => void;
   onUnsnoozeTask?: (taskId: string) => void;
   isDraggable: boolean;
+  onUpdateSubtaskText: (taskId: string, subtaskId: string, newText: string) => void;
 }
 
-const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSubtaskModal, onDragStart, onDragOver, onDrop, isDragging, onSetSubtaskDueDate, onToggleTaskComplete, allTags, isCompactView, onMoveTask, taskIndex, totalTasks, onSnoozeTask, onUnsnoozeTask, isDraggable }) => {
+const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSubtaskModal, onDragStart, onDragOver, onDrop, isDragging, onSetSubtaskDueDate, onToggleTaskComplete, allTags, isCompactView, onMoveTask, taskIndex, totalTasks, onSnoozeTask, onUnsnoozeTask, isDraggable, onUpdateSubtaskText }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editingTitle, setEditingTitle] = useState(task.title);
   const [editingDescription, setEditingDescription] = useState(task.description);
@@ -34,6 +35,8 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
   const [editingSnoozeUntil, setEditingSnoozeUntil] = useState(task.snoozeUntil);
   const [isSnoozeMenuOpen, setIsSnoozeMenuOpen] = useState(false);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const [isEditingNextAction, setIsEditingNextAction] = useState(false);
+  const [editingNextActionText, setEditingNextActionText] = useState('');
 
   const lastTouchedDaysAgo = useMemo(() => {
     const completedSubtasks = task.subtasks.filter(st => st.completed && st.completionDate);
@@ -92,6 +95,27 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
 
   const nextAction = task.subtasks.find(st => !st.completed);
   const allSubtasksCompleted = task.subtasks.length > 0 && task.subtasks.every(st => st.completed);
+  const isNextActionScheduledForToday = nextAction?.dueDate === getTodayDateString();
+
+  const handleStartEditNextAction = () => {
+    if (!nextAction) return;
+    setIsEditingNextAction(true);
+    setEditingNextActionText(nextAction.text);
+  };
+
+  const handleCancelEditNextAction = () => {
+    setIsEditingNextAction(false);
+    setEditingNextActionText('');
+  };
+
+  const handleSaveNextAction = () => {
+    if (!nextAction || !editingNextActionText.trim()) {
+        handleCancelEditNextAction();
+        return;
+    }
+    onUpdateSubtaskText(task.id, nextAction.id, editingNextActionText.trim());
+    handleCancelEditNextAction();
+  };
 
   const suggestedTags = allTags.filter(tag => !editingDescription.includes(tag));
   const isAtTop = taskIndex === 0;
@@ -322,14 +346,40 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
             <div className="flex-grow flex flex-col sm:flex-row sm:items-center justify-between min-w-0 py-1">
               <div className="flex items-center flex-grow mb-2 sm:mb-0 sm:mr-2 min-w-0">
                 <button
-                  onClick={() => onSetSubtaskDueDate(nextAction.id, task.id, getTodayDateString())}
-                  className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-yellow-100 dark:hover:bg-yellow-900/50 hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors flex-shrink-0"
-                  aria-label={`Schedule subtask '${nextAction.text}' for today`}
-                  title="Schedule for Today"
+                  onClick={() => !isNextActionScheduledForToday && nextAction && onSetSubtaskDueDate(nextAction.id, task.id, getTodayDateString())}
+                  className={`p-2 rounded-full transition-colors flex-shrink-0 ${isNextActionScheduledForToday ? 'text-green-500 cursor-default' : 'text-gray-500 dark:text-gray-400 hover:bg-yellow-100 dark:hover:bg-yellow-900/50 hover:text-yellow-600 dark:hover:text-yellow-400'}`}
+                  aria-label={isNextActionScheduledForToday && nextAction ? `Subtask '${nextAction.text}' is scheduled for today` : nextAction ? `Schedule subtask '${nextAction.text}' for today` : 'Schedule for today'}
+                  title={isNextActionScheduledForToday ? "Scheduled for Today" : "Schedule for Today"}
+                  disabled={isNextActionScheduledForToday || !nextAction}
                 >
-                  <CalendarPlusIcon />
+                  {isNextActionScheduledForToday ? <CalendarIcon className="h-6 w-6" /> : <CalendarPlusIcon />}
                 </button>
-                <span className="ml-2 text-gray-600 dark:text-gray-300 break-words">{nextAction.text}</span>
+                {isEditingNextAction && nextAction ? (
+                   <input
+                      autoFocus
+                      type="text"
+                      value={editingNextActionText}
+                      onChange={e => setEditingNextActionText(e.target.value)}
+                      onBlur={handleSaveNextAction}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') handleSaveNextAction();
+                        if (e.key === 'Escape') handleCancelEditNextAction();
+                      }}
+                      className="ml-2 w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    />
+                ) : nextAction ? (
+                  <div className="flex items-center min-w-0">
+                    <span className="ml-2 text-gray-600 dark:text-gray-300 break-words">{nextAction.text}</span>
+                    <button
+                        onClick={handleStartEditNextAction}
+                        className="ml-2 text-gray-400 dark:text-gray-500 hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors p-1 flex-shrink-0"
+                        aria-label={`Edit next action subtask: ${nextAction.text}`}
+                        title="Edit next action"
+                    >
+                        <EditIcon className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : null}
               </div>
               {nextAction.dueDate && (
                 <div className="self-end sm:self-center flex-shrink-0">
