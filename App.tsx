@@ -1313,7 +1313,6 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
                                 onChange={e => setSortOption(e.target.value as SortOption)}
                                 className="appearance-none bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-colors"
                                 aria-label="Sort tasks"
-                                disabled={isOnlineMode}
                             >
                                 <option value="manual">Ordina: Manuale</option>
                                 <option value="days_passed">Ordina: Ultima azione</option>
