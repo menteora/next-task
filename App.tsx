@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { Task, Subtask } from './types';
+import { Task, Subtask, RecurrenceRule } from './types';
 import TaskItem from './components/TaskItem';
 import SubtaskModal from './components/SubtaskModal';
 import TodaySubtaskItem from './components/TodaySubtaskItem';
@@ -73,7 +73,6 @@ const App: React.FC = () => {
 
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDescription, setNewTaskDescription] = useState('');
-  const [isNewTaskRecurring, setIsNewTaskRecurring] = useState(false);
   const [isFormVisible, setIsFormVisible] = useState(false);
   
   const [modalTask, setModalTask] = useState<Task | null>(null);
@@ -86,6 +85,7 @@ const App: React.FC = () => {
   const [isCompactView, setIsCompactView] = useState(false);
   const [sortOption, setSortOption] = useState<SortOption>('manual');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const generatorRan = useRef(false);
 
   // Supabase state
   const supabase = useMemo(() => {
@@ -157,6 +157,83 @@ const App: React.FC = () => {
       return () => subscription.unsubscribe();
     }
   }, [supabase]);
+
+  // Recurrence Generator
+  useEffect(() => {
+    if (tasks.length > 0 && !generatorRan.current) {
+        const shouldGenerateForToday = (rule: RecurrenceRule, today: Date): boolean => {
+            const dayOfWeekMap: RecurrenceRule['daysOfWeek'] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+            // A fixed reference date for consistent interval calculations
+            const refDate = new Date('2024-01-01T00:00:00Z');
+            const todayWithoutTime = new Date(today);
+            todayWithoutTime.setHours(0,0,0,0);
+            
+            const diffDays = Math.floor((todayWithoutTime.getTime() - refDate.getTime()) / (1000 * 60 * 60 * 24));
+
+            switch (rule.frequency) {
+                case 'daily':
+                    return diffDays % rule.interval === 0;
+                case 'weekly':
+                    if (!rule.daysOfWeek || rule.daysOfWeek.length === 0) return false;
+                    const todayDay = dayOfWeekMap[today.getDay()];
+                    const weekNum = Math.floor(diffDays / 7);
+
+                    if (rule.daysOfWeek.includes(todayDay)) {
+                         return weekNum % rule.interval === 0;
+                    }
+                    return false;
+                default:
+                    return false;
+            }
+        };
+
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
+        let wasChanged = false;
+
+        const updatedTasks = tasks.map(task => {
+            const masterSubtasks = task.subtasks.filter(st => st.recurrenceRule);
+            if (masterSubtasks.length === 0) return task;
+
+            let newInstances: Subtask[] = [];
+
+            masterSubtasks.forEach(master => {
+                if (shouldGenerateForToday(master.recurrenceRule!, today)) {
+                    const instanceExists = task.subtasks.some(
+                        st => st.masterSubtaskId === master.id && st.dueDate === todayStr && !st.completed
+                    );
+
+                    if (!instanceExists) {
+                        newInstances.push({
+                            id: crypto.randomUUID(),
+                            text: master.text,
+                            completed: false,
+                            order: -1, // Will be recalculated
+                            isInstance: true,
+                            masterSubtaskId: master.id,
+                            dueDate: todayStr,
+                        });
+                    }
+                }
+            });
+
+            if (newInstances.length > 0) {
+                wasChanged = true;
+                const newSubtasks = [...task.subtasks, ...newInstances].map((st, index) => ({ ...st, order: index }));
+                return { ...task, subtasks: newSubtasks };
+            }
+
+            return task;
+        });
+
+        if (wasChanged) {
+            console.log("Generating recurring subtask instances...");
+            setTasks(updatedTasks);
+        }
+
+        generatorRan.current = true;
+    }
+  }, [tasks]);
   
   // Data Loading Logic
   const fetchOnlineTasks = useCallback(async (db: SupabaseClient) => {
@@ -200,6 +277,8 @@ const App: React.FC = () => {
         dueDate: st.due_date,
         completionDate: st.completion_date,
         isInstance: st.is_instance,
+        masterSubtaskId: st.master_subtask_id,
+        recurrenceRule: st.recurrence_rule,
         order: st.order,
       };
       const existing = subtasksByTaskId.get(st.task_id) || [];
@@ -213,7 +292,6 @@ const App: React.FC = () => {
       description: t.description,
       completed: t.completed,
       completionDate: t.completion_date,
-      recurring: t.recurring,
       snoozeUntil: t.snooze_until,
       order: t.order,
       subtasks: subtasksByTaskId.get(t.id) || [],
@@ -435,7 +513,6 @@ const App: React.FC = () => {
       const { data, error } = await supabase.from('online_tasks').insert({
         title: newTaskTitle.trim(),
         description: newTaskDescription.trim(),
-        recurring: isNewTaskRecurring,
         user_id: supabaseSession.user.id,
         order: maxOrder + 1
       }).select().single();
@@ -448,7 +525,6 @@ const App: React.FC = () => {
           title: data.title,
           description: data.description,
           completed: data.completed,
-          recurring: data.recurring,
           order: data.order,
           subtasks: [],
         };
@@ -462,7 +538,6 @@ const App: React.FC = () => {
         title: newTaskTitle.trim(),
         description: newTaskDescription.trim(),
         subtasks: [],
-        recurring: isNewTaskRecurring,
         completed: false,
         order: maxOrder + 1,
       };
@@ -470,7 +545,6 @@ const App: React.FC = () => {
     }
     setNewTaskTitle('');
     setNewTaskDescription('');
-    setIsNewTaskRecurring(false);
     setIsFormVisible(false);
   };
 
@@ -509,7 +583,6 @@ const App: React.FC = () => {
         const { error } = await supabase.from('online_tasks').update({
             title: updatedTask.title,
             description: updatedTask.description,
-            recurring: updatedTask.recurring,
             snooze_until: updatedTask.snoozeUntil,
             completed: updatedTask.completed,
             completion_date: updatedTask.completionDate,
@@ -528,11 +601,11 @@ const App: React.FC = () => {
             due_date: st.dueDate,
             completion_date: st.completionDate,
             is_instance: st.isInstance,
+            master_subtask_id: st.masterSubtaskId,
+            recurrence_rule: st.recurrenceRule,
             order: st.order,
         }));
-
-        // In a real app you might do more granular subtask updates
-        // For simplicity here, we delete and re-insert
+        
         await supabase.from('online_subtasks').delete().match({ task_id: updatedTask.id });
         const { error: subtaskError } = await supabase.from('online_subtasks').upsert(onlineSubtasks);
 
@@ -612,54 +685,24 @@ const App: React.FC = () => {
   }, [isOnlineMode, supabase]);
 
   const handleSetSubtaskDueDate = useCallback(async (subtaskId: string, taskId: string, date: string) => {
-      let finalTask: Task | undefined;
       const task = tasks.find(t => t.id === taskId);
       if (!task) return;
       
-      const subtaskIndex = task.subtasks.findIndex(st => st.id === subtaskId);
-      if (subtaskIndex === -1) return;
+      const subtask = task.subtasks.find(st => st.id === subtaskId);
+      if (!subtask || subtask.recurrenceRule) return;
 
-      if (task.recurring) {
-          const originalSubtask = task.subtasks[subtaskIndex];
-          const maxOrder = task.subtasks.reduce((max, st) => Math.max(st.order, max), -1);
-          const newInstance: Subtask = {
-              ...originalSubtask,
-              id: crypto.randomUUID(),
-              completed: false,
-              dueDate: date,
-              isInstance: true,
-              completionDate: undefined,
-              order: maxOrder + 1
-          };
-          finalTask = { ...task, subtasks: [...task.subtasks, newInstance] };
+      const updatedSubtasks = task.subtasks.map(st => st.id === subtaskId ? { ...st, dueDate: date } : st);
+      const finalTask = { ...task, subtasks: updatedSubtasks };
 
-          if (isOnlineMode && supabase && supabaseSession) {
-              await supabase.from('online_subtasks').insert({
-                  id: newInstance.id,
-                  task_id: taskId,
-                  user_id: supabaseSession.user.id,
-                  text: newInstance.text,
-                  due_date: date,
-                  is_instance: true,
-                  order: newInstance.order
-              });
-          }
-      } else {
-          const updatedSubtasks = [...task.subtasks];
-          updatedSubtasks[subtaskIndex] = { ...updatedSubtasks[subtaskIndex], dueDate: date };
-          finalTask = { ...task, subtasks: updatedSubtasks };
-          if (isOnlineMode && supabase) {
-              await supabase.from('online_subtasks').update({ due_date: date }).match({ id: subtaskId });
-          }
+      if (isOnlineMode && supabase) {
+          await supabase.from('online_subtasks').update({ due_date: date }).match({ id: subtaskId });
       }
 
-      if (finalTask) {
-        setTasks(prevTasks => prevTasks.map(t => t.id === taskId ? finalTask! : t));
-        if (modalTask?.id === taskId) {
-            setModalTask(finalTask);
-        }
+      setTasks(prevTasks => prevTasks.map(t => t.id === taskId ? finalTask : t));
+      if (modalTask?.id === taskId) {
+          setModalTask(finalTask);
       }
-  }, [tasks, isOnlineMode, supabase, modalTask, supabaseSession]);
+  }, [tasks, isOnlineMode, supabase, modalTask]);
 
 
   const handleToggleTodaySubtaskComplete = useCallback(async (subtaskId: string, taskId: string) => {
@@ -1077,7 +1120,6 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
       title: t.title,
       description: t.description,
       completed: t.completed,
-      recurring: t.recurring,
       snooze_until: t.snoozeUntil,
       completion_date: t.completionDate,
       order: t.order,
@@ -1100,6 +1142,8 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
         due_date: st.dueDate,
         completion_date: st.completionDate,
         is_instance: st.isInstance,
+        master_subtask_id: st.masterSubtaskId,
+        recurrence_rule: st.recurrenceRule,
         order: st.order
     }));
 
@@ -1380,17 +1424,6 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
                       onChange={setNewTaskDescription}
                       placeholder="Description... use #tag to add tags"
                     />
-                     <div className="flex items-center">
-                       <input
-                            type="checkbox"
-                            id="new-task-recurring"
-                            checked={isNewTaskRecurring}
-                            onChange={e => setIsNewTaskRecurring(e.target.checked)}
-                            className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-gray-200 dark:bg-gray-700 text-teal-600 dark:text-teal-500 focus:ring-teal-500 dark:focus:ring-teal-600 cursor-pointer"
-                        />
-                        <label htmlFor="new-task-recurring" className="ml-2 text-sm text-gray-500 dark:text-gray-400">Recurring Task</label>
-                    </div>
-
                     <div className="flex justify-end space-x-2">
                        <button onClick={() => setIsFormVisible(false)} className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md transition-colors">
                         Cancel

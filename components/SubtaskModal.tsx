@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Task, Subtask } from '../types';
+import { Task, Subtask, RecurrenceRule } from '../types';
 import ConfirmationModal from './ConfirmationModal';
-import { TrashIcon, GripVerticalIcon, EditIcon, CalendarPlusIcon, CalendarIcon, ChevronDoubleUpIcon, ChevronUpIcon, ChevronDownIcon, ChevronDoubleDownIcon } from './icons';
+import RecurrenceEditor from './RecurrenceEditor';
+import { TrashIcon, GripVerticalIcon, EditIcon, RepeatIcon, CalendarIcon, ChevronDoubleUpIcon, ChevronUpIcon, ChevronDownIcon, ChevronDoubleDownIcon } from './icons';
 
 interface SubtaskModalProps {
   task: Task;
@@ -10,28 +11,44 @@ interface SubtaskModalProps {
   onSetSubtaskDueDate: (subtaskId: string, taskId: string, date: string) => void;
 }
 
-const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask, onSetSubtaskDueDate }) => {
+const formatRecurrenceRule = (rule: RecurrenceRule): string => {
+    const parts: string[] = ['Si ripete'];
+    if (rule.interval > 1) {
+        parts.push(`ogni ${rule.interval}`);
+        parts.push(rule.frequency === 'daily' ? 'giorni' : 'settimane');
+    } else {
+        parts.push(rule.frequency === 'daily' ? 'giornalmente' : 'settimanalmente');
+    }
+    
+    if (rule.frequency === 'weekly' && rule.daysOfWeek && rule.daysOfWeek.length > 0) {
+        parts.push(`il ${rule.daysOfWeek.join(', ')}`);
+    }
+
+    return parts.join(' ');
+};
+
+
+const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask }) => {
   const [newSubtaskText, setNewSubtaskText] = useState('');
   const [draggedSubtask, setDraggedSubtask] = useState<Subtask | null>(null);
   const [editingSubtaskId, setEditingSubtaskId] = useState<string | null>(null);
   const [editingSubtaskText, setEditingSubtaskText] = useState('');
   const [confirmingDeleteSubtaskId, setConfirmingDeleteSubtaskId] = useState<string | null>(null);
+  const [editingRecurrence, setEditingRecurrence] = useState<Subtask | null>(null);
 
   const getTodayDateString = () => new Date().toISOString().split('T')[0];
 
   const handleAddSubtask = () => {
     if (newSubtaskText.trim()) {
-      // FIX: Add a placeholder 'order' and default `isInstance` to satisfy type and DB constraints.
       const newSubtask: Subtask = {
         id: crypto.randomUUID(),
         text: newSubtaskText.trim(),
         completed: false,
-        order: -1, // Placeholder order, will be recalculated.
+        order: -1, 
         isInstance: false,
       };
       const incomplete = task.subtasks.filter(st => !st.completed);
       const completed = task.subtasks.filter(st => st.completed);
-      // FIX: Recalculate 'order' for all subtasks to ensure data consistency.
       const updatedSubtasks = [...incomplete, newSubtask, ...completed].map(
         (st, index) => ({ ...st, order: index }),
       );
@@ -42,7 +59,6 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
   };
   
   const handleDeleteSubtask = (subtaskId: string) => {
-      // FIX: Recalculate order for remaining subtasks to prevent gaps and maintain consistency.
       const updatedSubtasks = task.subtasks
         .filter(st => st.id !== subtaskId)
         .map((st, index) => ({ ...st, order: index }));
@@ -62,7 +78,6 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
       return st;
     });
 
-    // FIX: Regroup and recalculate order to maintain separation of incomplete and completed tasks.
     const incomplete = updatedSubtasksWithToggle.filter(st => !st.completed);
     const completed = updatedSubtasksWithToggle.filter(st => st.completed);
     const updatedSubtasks = [...incomplete, ...completed].map((st, index) => ({ ...st, order: index }));
@@ -78,6 +93,7 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
   };
 
   const handleStartEdit = (subtask: Subtask) => {
+    if (subtask.recurrenceRule) return;
     setEditingSubtaskId(subtask.id);
     setEditingSubtaskText(subtask.text);
   };
@@ -99,7 +115,7 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
   };
   
   const handleMoveSubtask = (subtaskId: string, direction: 'up' | 'down' | 'top' | 'bottom') => {
-    const incomplete = task.subtasks.filter(st => !st.completed);
+    const incomplete = task.subtasks.filter(st => !st.completed && !st.recurrenceRule);
     const fromIndex = incomplete.findIndex(st => st.id === subtaskId);
     if (fromIndex === -1) return;
 
@@ -121,14 +137,14 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
         [newIncompleteSubtasks[fromIndex], newIncompleteSubtasks[fromIndex + 1]] = [newIncompleteSubtasks[fromIndex + 1], newIncompleteSubtasks[fromIndex]];
     }
 
+    const masters = task.subtasks.filter(st => !!st.recurrenceRule);
     const completed = task.subtasks.filter(st => st.completed);
-    // FIX: Recalculate order for all subtasks after moving an item.
-    const updatedSubtasks = [...newIncompleteSubtasks, ...completed].map((st, index) => ({ ...st, order: index }));
+    const updatedSubtasks = [...newIncompleteSubtasks, ...masters, ...completed].map((st, index) => ({ ...st, order: index }));
     onUpdateTask({ ...task, subtasks: updatedSubtasks });
   };
 
   const onDragStart = (e: React.DragEvent<HTMLLIElement>, subtask: Subtask) => {
-    if (subtask.completed) {
+    if (subtask.completed || subtask.recurrenceRule) {
       e.preventDefault();
       return;
     }
@@ -140,9 +156,9 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
   };
 
   const onDrop = (e: React.DragEvent<HTMLLIElement>, targetSubtask: Subtask) => {
-    if (!draggedSubtask || draggedSubtask.completed || targetSubtask.completed) return;
+    if (!draggedSubtask || draggedSubtask.completed || targetSubtask.completed || targetSubtask.recurrenceRule) return;
     
-    const incomplete = task.subtasks.filter(st => !st.completed);
+    const incomplete = task.subtasks.filter(st => !st.completed && !st.recurrenceRule);
     const fromIndex = incomplete.findIndex(st => st.id === draggedSubtask.id);
     const toIndex = incomplete.findIndex(st => st.id === targetSubtask.id);
     
@@ -151,10 +167,10 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
     const [reorderedItem] = incomplete.splice(fromIndex, 1);
     incomplete.splice(toIndex, 0, reorderedItem);
     
+    const masters = task.subtasks.filter(st => !!st.recurrenceRule);
     const completed = task.subtasks.filter(st => st.completed);
 
-    // FIX: Recalculate order for all subtasks after a drag-and-drop operation.
-    const updatedSubtasks = [...incomplete, ...completed].map((st, index) => ({ ...st, order: index }));
+    const updatedSubtasks = [...incomplete, ...masters, ...completed].map((st, index) => ({ ...st, order: index }));
     onUpdateTask({ ...task, subtasks: updatedSubtasks });
   };
 
@@ -162,9 +178,20 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
     setDraggedSubtask(null);
   };
   
+  const handleSaveRecurrence = (rule: RecurrenceRule | undefined) => {
+    if (editingRecurrence) {
+        const updatedSubtasks = task.subtasks.map(st => 
+            st.id === editingRecurrence.id ? { ...st, recurrenceRule: rule } : st
+        );
+        onUpdateTask({ ...task, subtasks: updatedSubtasks });
+    }
+    setEditingRecurrence(null);
+  };
+
   const subtaskToDelete = task.subtasks.find(st => st.id === confirmingDeleteSubtaskId);
 
-  const incompleteSubtasks = task.subtasks.filter(st => !st.completed);
+  const incompleteSubtasks = task.subtasks.filter(st => !st.completed && !st.recurrenceRule);
+  const masterSubtasks = task.subtasks.filter(st => !!st.recurrenceRule);
   const completedSubtasks = task.subtasks
     .filter(st => st.completed)
     .sort((a, b) => {
@@ -178,34 +205,37 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
       <div className="fixed inset-0 bg-black bg-opacity-75 flex justify-center items-center z-50" onClick={onClose}>
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-4 m-2 sm:p-6 sm:m-4 md:max-w-2xl" onClick={(e) => e.stopPropagation()}>
           <h2 className="text-xl sm:text-2xl font-bold mb-2 text-indigo-600 dark:text-indigo-400">Sub-tasks for: <span className="text-gray-800 dark:text-white">{task.title}</span></h2>
-          <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mb-6">Drag to reorder. Assign a date to see it in the 'Today' view.</p>
+          <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mb-6">Drag to reorder. Set recurrence to automatically create tasks.</p>
           
-          <div className="mb-6 max-h-72 overflow-y-auto pr-2">
-            {incompleteSubtasks.length > 0 && (
+          <div className="mb-6 max-h-[20rem] overflow-y-auto pr-2">
+             {(incompleteSubtasks.length > 0 || masterSubtasks.length > 0) && (
               <div>
                 <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 px-1 pt-2 mb-2">To Do</h3>
                 <ul className="space-y-2">
-                    {incompleteSubtasks.map((subtask, index) => {
-                        const isAtTop = index === 0;
-                        const isAtBottom = index === incompleteSubtasks.length - 1;
+                    {[...incompleteSubtasks, ...masterSubtasks].map((subtask, index) => {
+                        const isMaster = !!subtask.recurrenceRule;
+                        const isDraggable = !isMaster;
+                        const incompleteNonMasters = incompleteSubtasks;
+                        const isAtTop = isDraggable && incompleteNonMasters.findIndex(s => s.id === subtask.id) === 0;
+                        const isAtBottom = isDraggable && incompleteNonMasters.findIndex(s => s.id === subtask.id) === incompleteNonMasters.length - 1;
+
                         return (
                         <li key={subtask.id}
-                            draggable={!editingSubtaskId}
+                            draggable={isDraggable && !editingSubtaskId}
                             onDragStart={(e) => onDragStart(e, subtask)}
                             onDragOver={onDragOver}
                             onDrop={(e) => onDrop(e, subtask)}
                             onDragEnd={onDragEnd}
-                            className={`flex flex-col sm:flex-row items-stretch sm:items-center justify-between p-2 sm:p-3 rounded-md transition-all ${draggedSubtask?.id === subtask.id ? 'bg-indigo-100 dark:bg-indigo-900/50' : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600/80'}`}
+                            className={`flex flex-col sm:flex-row items-stretch sm:items-center justify-between p-2 sm:p-3 rounded-md transition-all ${draggedSubtask?.id === subtask.id ? 'bg-indigo-100 dark:bg-indigo-900/50' : 'bg-gray-100 dark:bg-gray-700'} ${isDraggable && 'hover:bg-gray-200 dark:hover:bg-gray-600/80'}`}
                             >
                             <div className="flex items-center flex-grow">
-                                <div className="cursor-grab p-1 mr-2">
-                                    <GripVerticalIcon />
-                                </div>
+                                {isDraggable && <div className="cursor-grab p-1 mr-2"><GripVerticalIcon /></div>}
                                 <input 
                                     type="checkbox"
                                     checked={subtask.completed}
                                     onChange={() => handleToggleComplete(subtask.id)}
-                                    className="h-4 w-4 rounded border-gray-400 dark:border-gray-500 bg-gray-200 dark:bg-gray-600 text-teal-600 dark:text-teal-500 focus:ring-teal-500 dark:focus:ring-teal-600 cursor-pointer flex-shrink-0"
+                                    disabled={isMaster}
+                                    className="h-4 w-4 rounded border-gray-400 dark:border-gray-500 bg-gray-200 dark:bg-gray-600 text-teal-600 dark:text-teal-500 focus:ring-teal-500 dark:focus:ring-teal-600 cursor-pointer flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                                 />
                                 {editingSubtaskId === subtask.id ? (
                                     <input
@@ -221,33 +251,43 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
                                         className="ml-3 flex-grow bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                     />
                                 ) : (
-                                    <div className="ml-3 flex-grow" onClick={() => handleStartEdit(subtask)}>
-                                        <span className={'text-gray-700 dark:text-gray-200'}>
+                                    <div className={`ml-3 flex-grow ${!isMaster ? 'cursor-text' : ''}`} onClick={() => handleStartEdit(subtask)}>
+                                        <span className={`text-gray-700 dark:text-gray-200 ${isMaster ? 'font-medium' : ''}`}>
                                             {subtask.text}
                                         </span>
+                                        {isMaster && (
+                                            <p className="text-xs text-indigo-600 dark:text-indigo-400 font-normal flex items-center gap-1">
+                                                <RepeatIcon className="h-3 w-3" /> {formatRecurrenceRule(subtask.recurrenceRule!)}
+                                            </p>
+                                        )}
                                     </div>
                                 )}
                             </div>
                             {editingSubtaskId !== subtask.id && (
                                 <div className="flex items-center justify-end flex-wrap gap-2 mt-2 sm:mt-0 sm:ml-4">
-                                    <div className="flex items-center border border-gray-200 dark:border-gray-600 rounded-md">
-                                        <button onClick={() => handleMoveSubtask(subtask.id, 'top')} disabled={isAtTop} className="p-1.5 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-indigo-500 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors" title="Move to top" aria-label="Move subtask to top"><ChevronDoubleUpIcon className="h-4 w-4" /></button>
-                                        <button onClick={() => handleMoveSubtask(subtask.id, 'up')} disabled={isAtTop} className="p-1.5 border-l border-gray-200 dark:border-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-indigo-500 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors" title="Move up" aria-label="Move subtask up"><ChevronUpIcon className="h-4 w-4" /></button>
-                                        <button onClick={() => handleMoveSubtask(subtask.id, 'down')} disabled={isAtBottom} className="p-1.5 border-l border-gray-200 dark:border-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-indigo-500 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors" title="Move down" aria-label="Move subtask down"><ChevronDownIcon className="h-4 w-4" /></button>
-                                        <button onClick={() => handleMoveSubtask(subtask.id, 'bottom')} disabled={isAtBottom} className="p-1.5 border-l border-gray-200 dark:border-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-indigo-500 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors" title="Move to bottom" aria-label="Move subtask to bottom"><ChevronDoubleDownIcon className="h-4 w-4" /></button>
-                                    </div>
+                                    {isDraggable && (
+                                      <div className="flex items-center border border-gray-200 dark:border-gray-600 rounded-md">
+                                          <button onClick={() => handleMoveSubtask(subtask.id, 'top')} disabled={isAtTop} className="p-1.5 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-indigo-500 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors" title="Move to top" aria-label="Move subtask to top"><ChevronDoubleUpIcon className="h-4 w-4" /></button>
+                                          <button onClick={() => handleMoveSubtask(subtask.id, 'up')} disabled={isAtTop} className="p-1.5 border-l border-gray-200 dark:border-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-indigo-500 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors" title="Move up" aria-label="Move subtask up"><ChevronUpIcon className="h-4 w-4" /></button>
+                                          <button onClick={() => handleMoveSubtask(subtask.id, 'down')} disabled={isAtBottom} className="p-1.5 border-l border-gray-200 dark:border-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-indigo-500 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors" title="Move down" aria-label="Move subtask down"><ChevronDownIcon className="h-4 w-4" /></button>
+                                          <button onClick={() => handleMoveSubtask(subtask.id, 'bottom')} disabled={isAtBottom} className="p-1.5 border-l border-gray-200 dark:border-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-indigo-500 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors" title="Move to bottom" aria-label="Move subtask to bottom"><ChevronDoubleDownIcon className="h-4 w-4" /></button>
+                                      </div>
+                                    )}
                                     <input
                                         type="date"
                                         value={subtask.dueDate || ''}
                                         onChange={(e) => handleDateChange(subtask.id, e.target.value)}
-                                        className="bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 border-none rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        disabled={isMaster}
+                                        className="bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 border-none rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
                                     />
-                                    <button onClick={() => onSetSubtaskDueDate(subtask.id, task.id, getTodayDateString())} className="text-gray-400 dark:text-gray-500 hover:text-yellow-500 dark:hover:text-yellow-400 transition-colors p-1" aria-label={`Schedule for today`}>
-                                        <CalendarPlusIcon />
+                                     <button onClick={() => setEditingRecurrence(subtask)} className="text-gray-400 dark:text-gray-500 hover:text-teal-500 dark:hover:text-teal-400 transition-colors p-1" aria-label={`Set recurrence`}>
+                                        <RepeatIcon />
                                     </button>
+                                    {!isMaster && (
                                     <button onClick={() => handleStartEdit(subtask)} className="text-gray-400 dark:text-gray-500 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors p-1">
                                         <EditIcon />
                                     </button>
+                                    )}
                                     <button onClick={() => setConfirmingDeleteSubtaskId(subtask.id)} className="text-gray-400 dark:text-gray-500 hover:text-red-500 transition-colors p-1">
                                         <TrashIcon />
                                     </button>
@@ -259,7 +299,7 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
               </div>
             )}
             
-            {incompleteSubtasks.length > 0 && completedSubtasks.length > 0 && (
+            {(incompleteSubtasks.length > 0 || masterSubtasks.length > 0) && completedSubtasks.length > 0 && (
                 <hr className="my-4 border-gray-200 dark:border-gray-600" />
             )}
 
@@ -332,6 +372,12 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
         message={`Are you sure you want to delete the subtask "${subtaskToDelete?.text || ''}"? This action cannot be undone.`}
         confirmButtonText="Delete"
         confirmButtonClass="bg-red-600 hover:bg-red-700"
+      />
+       <RecurrenceEditor
+        isOpen={!!editingRecurrence}
+        onClose={() => setEditingRecurrence(null)}
+        onSave={handleSaveRecurrence}
+        initialRule={editingRecurrence?.recurrenceRule}
       />
     </>
   );

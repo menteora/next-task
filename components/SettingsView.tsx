@@ -116,7 +116,6 @@ CREATE TABLE public.online_tasks (
   title TEXT NOT NULL,
   description TEXT,
   completed BOOLEAN DEFAULT false NOT NULL,
-  recurring BOOLEAN DEFAULT false NOT NULL,
   snooze_until DATE,
   completion_date TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
@@ -133,6 +132,8 @@ CREATE TABLE public.online_subtasks (
   due_date DATE,
   completion_date TIMESTAMPTZ,
   is_instance BOOLEAN DEFAULT false NOT NULL,
+  master_subtask_id UUID,
+  recurrence_rule JSONB,
   created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
   "order" INTEGER NOT NULL
 );
