@@ -31,6 +31,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
   const [isEditing, setIsEditing] = useState(false);
   const [editingTitle, setEditingTitle] = useState(task.title);
   const [editingDescription, setEditingDescription] = useState(task.description);
+  const [isRecurring, setIsRecurring] = useState(task.recurring ?? false);
   const [editingSnoozeUntil, setEditingSnoozeUntil] = useState(task.snoozeUntil);
   const [isSnoozeMenuOpen, setIsSnoozeMenuOpen] = useState(false);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
@@ -67,6 +68,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
         ...task,
         title: editingTitle.trim(),
         description: editingDescription.trim(),
+        recurring: isRecurring,
         snoozeUntil: editingSnoozeUntil,
       });
       setIsEditing(false);
@@ -77,6 +79,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
   const handleCancel = () => {
     setEditingTitle(task.title);
     setEditingDescription(task.description);
+    setIsRecurring(task.recurring ?? false);
     setEditingSnoozeUntil(task.snoozeUntil);
     setIsEditing(false);
   };
@@ -90,9 +93,8 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
     setIsSnoozeMenuOpen(false);
   };
 
-  const nextAction = task.subtasks.find(st => !st.completed && !st.recurrenceRule);
-  const allSubtasksCompleted = task.subtasks.length > 0 && task.subtasks.every(st => st.completed || st.recurrenceRule);
-  const hasRecurringSubtasks = task.subtasks.some(st => !!st.recurrenceRule);
+  const nextAction = task.subtasks.find(st => !st.completed);
+  const allSubtasksCompleted = task.subtasks.length > 0 && task.subtasks.every(st => st.completed);
   const isNextActionScheduledForToday = nextAction?.dueDate === getTodayDateString();
 
   const handleStartEditNextAction = () => {
@@ -182,7 +184,16 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
                     </div>
                 </div>
                 )}
-                <div className="pt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                    <label className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                        <input
+                            type="checkbox"
+                            checked={isRecurring}
+                            onChange={e => setIsRecurring(e.target.checked)}
+                            className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-gray-200 dark:bg-gray-700 text-teal-600 dark:text-teal-500 focus:ring-teal-500 dark:focus:ring-teal-600 cursor-pointer"
+                        />
+                        <span className="ml-2">Recurring Task</span>
+                    </label>
                     <div>
                         <label htmlFor={`snooze-${task.id}`} className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Snooze Until</label>
                         <div className="flex items-center gap-2">
@@ -205,6 +216,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
                 <div>
                     <div className="flex items-center flex-wrap gap-2 text-gray-700 dark:text-gray-300">
                         <h3 className={`font-bold text-lg text-indigo-600 dark:text-indigo-400 ${task.completed ? 'line-through' : ''}`}>{task.title}</h3>
+                        {task.recurring && !task.completed && <RepeatIcon />}
                         {lastTouchedDaysAgo !== null && !task.completed && (
                             <span className="flex items-center text-xs text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded-full font-medium whitespace-nowrap">
                                 <ClockIcon className="h-4 w-4 mr-1" />
@@ -386,26 +398,15 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
             </div>
           </div>
         ) : allSubtasksCompleted ? (
-           <>
-            {hasRecurringSubtasks ? (
-              <div className="flex justify-between items-center">
-                <div className="flex items-center text-gray-500 dark:text-gray-400 text-sm italic">
-                  <RepeatIcon className="h-4 w-4 mr-2 text-indigo-500" />
-                  <span>Attività ricorrenti attive.</span>
-                </div>
-              </div>
-            ) : (
-              <div className="flex justify-between items-center">
-                <p className="text-gray-400 dark:text-gray-500 text-sm italic">All sub-tasks completed! 🎉</p>
-                <button
-                  onClick={() => onToggleTaskComplete(task.id)}
-                  className="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded-md text-sm transition-colors"
-                >
-                  Complete Task
-                </button>
-              </div>
-            )}
-          </>
+           <div className="flex justify-between items-center">
+             <p className="text-gray-400 dark:text-gray-500 text-sm italic">All sub-tasks completed! 🎉</p>
+             <button
+                onClick={() => onToggleTaskComplete(task.id)}
+                className="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded-md text-sm transition-colors"
+              >
+                Complete Task
+              </button>
+           </div>
         ) : (
           <p className="text-gray-400 dark:text-gray-500 text-sm italic">
             No sub-tasks yet.
