@@ -1,7 +1,8 @@
+
 import React, { useState } from 'react';
 import { Task, Subtask } from '../types';
 import ConfirmationModal from './ConfirmationModal';
-import { TrashIcon, GripVerticalIcon, EditIcon, CalendarPlusIcon, CalendarIcon, ChevronDoubleUpIcon, ChevronUpIcon, ChevronDownIcon, ChevronDoubleDownIcon } from './icons';
+import { TrashIcon, GripVerticalIcon, EditIcon, CalendarPlusIcon, RepeatIcon, ChevronDoubleUpIcon, ChevronUpIcon, ChevronDownIcon, ChevronDoubleDownIcon } from './icons';
 
 interface SubtaskModalProps {
   task: Task;
@@ -21,17 +22,14 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
 
   const handleAddSubtask = () => {
     if (newSubtaskText.trim()) {
-      // FIX: Add a placeholder 'order' and default `isInstance` to satisfy type and DB constraints.
       const newSubtask: Subtask = {
         id: crypto.randomUUID(),
         text: newSubtaskText.trim(),
         completed: false,
-        order: -1, // Placeholder order, will be recalculated.
-        isInstance: false,
+        order: -1, 
       };
       const incomplete = task.subtasks.filter(st => !st.completed);
       const completed = task.subtasks.filter(st => st.completed);
-      // FIX: Recalculate 'order' for all subtasks to ensure data consistency.
       const updatedSubtasks = [...incomplete, newSubtask, ...completed].map(
         (st, index) => ({ ...st, order: index }),
       );
@@ -42,7 +40,6 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
   };
   
   const handleDeleteSubtask = (subtaskId: string) => {
-      // FIX: Recalculate order for remaining subtasks to prevent gaps and maintain consistency.
       const updatedSubtasks = task.subtasks
         .filter(st => st.id !== subtaskId)
         .map((st, index) => ({ ...st, order: index }));
@@ -50,30 +47,80 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
   };
   
   const handleToggleComplete = (subtaskId: string) => {
-    const updatedSubtasksWithToggle = task.subtasks.map(st => {
+    const subtaskToToggle = task.subtasks.find(st => st.id === subtaskId);
+    if (!subtaskToToggle) return;
+
+    const isCompleting = !subtaskToToggle.completed;
+    const completionDate = isCompleting ? new Date().toISOString() : undefined;
+    let newSubtask: Subtask | null = null;
+    let updatedSubtasks = task.subtasks.map(st => {
       if (st.id === subtaskId) {
-        const isCompleted = !st.completed;
-        return {
-          ...st,
-          completed: isCompleted,
-          completionDate: isCompleted ? new Date().toISOString() : undefined,
-        };
+        return { ...st, completed: isCompleting, completionDate };
       }
       return st;
     });
 
-    // FIX: Regroup and recalculate order to maintain separation of incomplete and completed tasks.
-    const incomplete = updatedSubtasksWithToggle.filter(st => !st.completed);
-    const completed = updatedSubtasksWithToggle.filter(st => st.completed);
-    const updatedSubtasks = [...incomplete, ...completed].map((st, index) => ({ ...st, order: index }));
+    if (isCompleting && subtaskToToggle.recurrence) {
+        const { unit, value } = subtaskToToggle.recurrence;
+        const baseDate = new Date();
+        let nextDueDate = new Date(baseDate);
 
-    onUpdateTask({ ...task, subtasks: updatedSubtasks });
+        if (unit === 'day') nextDueDate.setDate(nextDueDate.getDate() + value);
+        else if (unit === 'week') nextDueDate.setDate(nextDueDate.getDate() + (value * 7));
+        else if (unit === 'month') nextDueDate.setMonth(nextDueDate.getMonth() + value);
+        else if (unit === 'year') nextDueDate.setFullYear(nextDueDate.getFullYear() + value);
+        
+        const maxOrder = task.subtasks.reduce((max, st) => Math.max(st.order, max), -1);
+
+        newSubtask = {
+            ...subtaskToToggle,
+            id: crypto.randomUUID(),
+            completed: false,
+            dueDate: nextDueDate.toISOString().split('T')[0],
+            completionDate: undefined,
+            order: maxOrder + 1,
+        };
+        updatedSubtasks.push(newSubtask);
+    }
+    
+    const incomplete = updatedSubtasks.filter(st => !st.completed).sort((a,b) => a.order - b.order);
+    const completed = updatedSubtasks.filter(st => st.completed).sort((a,b) => {
+        if (!a.completionDate) return 1;
+        if (!b.completionDate) return -1;
+        return new Date(a.completionDate).getTime() - new Date(b.completionDate).getTime()
+    });
+    const finalSubtasks = [...incomplete, ...completed].map((st, index) => ({ ...st, order: index }));
+
+    onUpdateTask({ ...task, subtasks: finalSubtasks });
   }
 
   const handleDateChange = (subtaskId: string, date: string) => {
     const updatedSubtasks = task.subtasks.map(st =>
         st.id === subtaskId ? { ...st, dueDate: date || undefined } : st
     );
+    onUpdateTask({ ...task, subtasks: updatedSubtasks });
+  };
+  
+  const handleRecurrenceChange = (subtaskId: string, field: 'unit' | 'value', value: string | number) => {
+    const updatedSubtasks = task.subtasks.map(st => {
+        if (st.id !== subtaskId) return st;
+
+        if (field === 'unit' && value === 'none') {
+            const { recurrence, ...rest } = st;
+            return rest;
+        }
+
+        const currentRecurrence = st.recurrence || { unit: 'week', value: 1 };
+        let newRecurrence;
+
+        if (field === 'unit') {
+            newRecurrence = { ...currentRecurrence, unit: value as 'day'|'week'|'month'|'year' };
+        } else {
+            newRecurrence = { ...currentRecurrence, value: parseInt(String(value), 10) || 1 };
+        }
+        
+        return { ...st, recurrence: newRecurrence };
+    });
     onUpdateTask({ ...task, subtasks: updatedSubtasks });
   };
 
@@ -122,7 +169,6 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
     }
 
     const completed = task.subtasks.filter(st => st.completed);
-    // FIX: Recalculate order for all subtasks after moving an item.
     const updatedSubtasks = [...newIncompleteSubtasks, ...completed].map((st, index) => ({ ...st, order: index }));
     onUpdateTask({ ...task, subtasks: updatedSubtasks });
   };
@@ -153,7 +199,6 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
     
     const completed = task.subtasks.filter(st => st.completed);
 
-    // FIX: Recalculate order for all subtasks after a drag-and-drop operation.
     const updatedSubtasks = [...incomplete, ...completed].map((st, index) => ({ ...st, order: index }));
     onUpdateTask({ ...task, subtasks: updatedSubtasks });
   };
@@ -178,7 +223,7 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
       <div className="fixed inset-0 bg-black bg-opacity-75 flex justify-center items-center z-50" onClick={onClose}>
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-4 m-2 sm:p-6 sm:m-4 md:max-w-2xl" onClick={(e) => e.stopPropagation()}>
           <h2 className="text-xl sm:text-2xl font-bold mb-2 text-indigo-600 dark:text-indigo-400">Sub-tasks for: <span className="text-gray-800 dark:text-white">{task.title}</span></h2>
-          <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mb-6">Drag to reorder. Assign a date to see it in the 'Today' view.</p>
+          <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mb-6">Drag to reorder. Assign a date to enable recurrence options.</p>
           
           <div className="mb-6 max-h-72 overflow-y-auto pr-2">
             {incompleteSubtasks.length > 0 && (
@@ -195,62 +240,88 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
                             onDragOver={onDragOver}
                             onDrop={(e) => onDrop(e, subtask)}
                             onDragEnd={onDragEnd}
-                            className={`flex flex-col sm:flex-row items-stretch sm:items-center justify-between p-2 sm:p-3 rounded-md transition-all ${draggedSubtask?.id === subtask.id ? 'bg-indigo-100 dark:bg-indigo-900/50' : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600/80'}`}
+                            className={`flex flex-col items-stretch p-2 sm:p-3 rounded-md transition-all ${draggedSubtask?.id === subtask.id ? 'bg-indigo-100 dark:bg-indigo-900/50' : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600/80'}`}
                             >
-                            <div className="flex items-center flex-grow">
-                                <div className="cursor-grab p-1 mr-2">
-                                    <GripVerticalIcon />
-                                </div>
-                                <input 
-                                    type="checkbox"
-                                    checked={subtask.completed}
-                                    onChange={() => handleToggleComplete(subtask.id)}
-                                    className="h-4 w-4 rounded border-gray-400 dark:border-gray-500 bg-gray-200 dark:bg-gray-600 text-teal-600 dark:text-teal-500 focus:ring-teal-500 dark:focus:ring-teal-600 cursor-pointer flex-shrink-0"
-                                />
-                                {editingSubtaskId === subtask.id ? (
-                                    <input
-                                        autoFocus
-                                        type="text"
-                                        value={editingSubtaskText}
-                                        onChange={e => setEditingSubtaskText(e.target.value)}
-                                        onBlur={handleSaveEdit}
-                                        onKeyDown={e => {
-                                            if (e.key === 'Enter') handleSaveEdit();
-                                            if (e.key === 'Escape') handleCancelEdit();
-                                        }}
-                                        className="ml-3 flex-grow bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center flex-grow">
+                                    <div className="cursor-grab p-1 mr-2">
+                                        <GripVerticalIcon />
+                                    </div>
+                                    <input 
+                                        type="checkbox"
+                                        checked={subtask.completed}
+                                        onChange={() => handleToggleComplete(subtask.id)}
+                                        className="h-4 w-4 rounded border-gray-400 dark:border-gray-500 bg-gray-200 dark:bg-gray-600 text-teal-600 dark:text-teal-500 focus:ring-teal-500 dark:focus:ring-teal-600 cursor-pointer flex-shrink-0"
                                     />
-                                ) : (
-                                    <div className="ml-3 flex-grow" onClick={() => handleStartEdit(subtask)}>
-                                        <span className={'text-gray-700 dark:text-gray-200'}>
-                                            {subtask.text}
-                                        </span>
+                                    {editingSubtaskId === subtask.id ? (
+                                        <input
+                                            autoFocus
+                                            type="text"
+                                            value={editingSubtaskText}
+                                            onChange={e => setEditingSubtaskText(e.target.value)}
+                                            onBlur={handleSaveEdit}
+                                            onKeyDown={e => {
+                                                if (e.key === 'Enter') handleSaveEdit();
+                                                if (e.key === 'Escape') handleCancelEdit();
+                                            }}
+                                            className="ml-3 flex-grow bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        />
+                                    ) : (
+                                        <div className="ml-3 flex-grow" onClick={() => handleStartEdit(subtask)}>
+                                            <span className={'text-gray-700 dark:text-gray-200'}>
+                                                {subtask.text}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                                {editingSubtaskId !== subtask.id && (
+                                    <div className="flex items-center justify-end flex-wrap gap-2 sm:ml-4">
+                                        <div className="flex items-center border border-gray-200 dark:border-gray-600 rounded-md">
+                                            <button onClick={() => handleMoveSubtask(subtask.id, 'top')} disabled={isAtTop} className="p-1.5 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-indigo-500 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors" title="Move to top" aria-label="Move subtask to top"><ChevronDoubleUpIcon className="h-4 w-4" /></button>
+                                            <button onClick={() => handleMoveSubtask(subtask.id, 'up')} disabled={isAtTop} className="p-1.5 border-l border-gray-200 dark:border-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-indigo-500 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors" title="Move up" aria-label="Move subtask up"><ChevronUpIcon className="h-4 w-4" /></button>
+                                            <button onClick={() => handleMoveSubtask(subtask.id, 'down')} disabled={isAtBottom} className="p-1.5 border-l border-gray-200 dark:border-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-indigo-500 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors" title="Move down" aria-label="Move subtask down"><ChevronDownIcon className="h-4 w-4" /></button>
+                                            <button onClick={() => handleMoveSubtask(subtask.id, 'bottom')} disabled={isAtBottom} className="p-1.5 border-l border-gray-200 dark:border-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-indigo-500 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors" title="Move to bottom" aria-label="Move subtask to bottom"><ChevronDoubleDownIcon className="h-4 w-4" /></button>
+                                        </div>
+                                        <input
+                                            type="date"
+                                            value={subtask.dueDate || ''}
+                                            onChange={(e) => handleDateChange(subtask.id, e.target.value)}
+                                            className="bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 border-none rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        />
+                                        <button onClick={() => onSetSubtaskDueDate(subtask.id, task.id, getTodayDateString())} className="text-gray-400 dark:text-gray-500 hover:text-yellow-500 dark:hover:text-yellow-400 transition-colors p-1" aria-label={`Schedule for today`}>
+                                            <CalendarPlusIcon />
+                                        </button>
+                                        <button onClick={() => handleStartEdit(subtask)} className="text-gray-400 dark:text-gray-500 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors p-1">
+                                            <EditIcon />
+                                        </button>
+                                        <button onClick={() => setConfirmingDeleteSubtaskId(subtask.id)} className="text-gray-400 dark:text-gray-500 hover:text-red-500 transition-colors p-1">
+                                            <TrashIcon />
+                                        </button>
                                     </div>
                                 )}
                             </div>
-                            {editingSubtaskId !== subtask.id && (
-                                <div className="flex items-center justify-end flex-wrap gap-2 mt-2 sm:mt-0 sm:ml-4">
-                                    <div className="flex items-center border border-gray-200 dark:border-gray-600 rounded-md">
-                                        <button onClick={() => handleMoveSubtask(subtask.id, 'top')} disabled={isAtTop} className="p-1.5 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-indigo-500 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors" title="Move to top" aria-label="Move subtask to top"><ChevronDoubleUpIcon className="h-4 w-4" /></button>
-                                        <button onClick={() => handleMoveSubtask(subtask.id, 'up')} disabled={isAtTop} className="p-1.5 border-l border-gray-200 dark:border-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-indigo-500 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors" title="Move up" aria-label="Move subtask up"><ChevronUpIcon className="h-4 w-4" /></button>
-                                        <button onClick={() => handleMoveSubtask(subtask.id, 'down')} disabled={isAtBottom} className="p-1.5 border-l border-gray-200 dark:border-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-indigo-500 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors" title="Move down" aria-label="Move subtask down"><ChevronDownIcon className="h-4 w-4" /></button>
-                                        <button onClick={() => handleMoveSubtask(subtask.id, 'bottom')} disabled={isAtBottom} className="p-1.5 border-l border-gray-200 dark:border-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-indigo-500 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors" title="Move to bottom" aria-label="Move subtask to bottom"><ChevronDoubleDownIcon className="h-4 w-4" /></button>
-                                    </div>
+                            {subtask.dueDate && editingSubtaskId !== subtask.id && (
+                                <div className="mt-2 pl-8 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                                    <RepeatIcon className="h-4 w-4 flex-shrink-0" />
+                                    <span className="font-medium">Every</span>
                                     <input
-                                        type="date"
-                                        value={subtask.dueDate || ''}
-                                        onChange={(e) => handleDateChange(subtask.id, e.target.value)}
-                                        className="bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 border-none rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                      type="number"
+                                      min="1"
+                                      value={subtask.recurrence?.value || 1}
+                                      onChange={(e) => handleRecurrenceChange(subtask.id, 'value', e.target.value)}
+                                      className="w-16 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 border-none rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                     />
-                                    <button onClick={() => onSetSubtaskDueDate(subtask.id, task.id, getTodayDateString())} className="text-gray-400 dark:text-gray-500 hover:text-yellow-500 dark:hover:text-yellow-400 transition-colors p-1" aria-label={`Schedule for today`}>
-                                        <CalendarPlusIcon />
-                                    </button>
-                                    <button onClick={() => handleStartEdit(subtask)} className="text-gray-400 dark:text-gray-500 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors p-1">
-                                        <EditIcon />
-                                    </button>
-                                    <button onClick={() => setConfirmingDeleteSubtaskId(subtask.id)} className="text-gray-400 dark:text-gray-500 hover:text-red-500 transition-colors p-1">
-                                        <TrashIcon />
-                                    </button>
+                                    <select
+                                      value={subtask.recurrence?.unit || 'none'}
+                                      onChange={(e) => handleRecurrenceChange(subtask.id, 'unit', e.target.value)}
+                                      className="bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 border-none rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    >
+                                      <option value="none">No Recurrence</option>
+                                      <option value="day">Day(s)</option>
+                                      <option value="week">Week(s)</option>
+                                      <option value="month">Month(s)</option>
+                                      <option value="year">Year(s)</option>
+                                    </select>
                                 </div>
                             )}
                         </li>

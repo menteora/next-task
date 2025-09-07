@@ -1,8 +1,9 @@
+
 import React, { useState, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Task } from '../types';
-import { TrashIcon, ChevronDownIcon, GripVerticalIcon, EditIcon, CalendarPlusIcon, RepeatIcon, CalendarIcon, ChevronUpIcon, ChevronDoubleUpIcon, ChevronDoubleDownIcon, ClockIcon, SnoozeIcon, CheckIcon } from './icons';
+import { TrashIcon, ChevronDownIcon, GripVerticalIcon, EditIcon, CalendarPlusIcon, CalendarIcon, ChevronUpIcon, ChevronDoubleUpIcon, ChevronDoubleDownIcon, ClockIcon, SnoozeIcon, CheckIcon } from './icons';
 import MarkdownInput from './MarkdownInput';
 
 interface TaskItemProps {
@@ -31,7 +32,6 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
   const [isEditing, setIsEditing] = useState(false);
   const [editingTitle, setEditingTitle] = useState(task.title);
   const [editingDescription, setEditingDescription] = useState(task.description);
-  const [isRecurring, setIsRecurring] = useState(task.recurring ?? false);
   const [editingSnoozeUntil, setEditingSnoozeUntil] = useState(task.snoozeUntil);
   const [isSnoozeMenuOpen, setIsSnoozeMenuOpen] = useState(false);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
@@ -68,7 +68,6 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
         ...task,
         title: editingTitle.trim(),
         description: editingDescription.trim(),
-        recurring: isRecurring,
         snoozeUntil: editingSnoozeUntil,
       });
       setIsEditing(false);
@@ -79,7 +78,6 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
   const handleCancel = () => {
     setEditingTitle(task.title);
     setEditingDescription(task.description);
-    setIsRecurring(task.recurring ?? false);
     setEditingSnoozeUntil(task.snoozeUntil);
     setIsEditing(false);
   };
@@ -185,15 +183,6 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
                 </div>
                 )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                    <label className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-                        <input
-                            type="checkbox"
-                            checked={isRecurring}
-                            onChange={e => setIsRecurring(e.target.checked)}
-                            className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-gray-200 dark:bg-gray-700 text-teal-600 dark:text-teal-500 focus:ring-teal-500 dark:focus:ring-teal-600 cursor-pointer"
-                        />
-                        <span className="ml-2">Recurring Task</span>
-                    </label>
                     <div>
                         <label htmlFor={`snooze-${task.id}`} className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Snooze Until</label>
                         <div className="flex items-center gap-2">
@@ -216,7 +205,6 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
                 <div>
                     <div className="flex items-center flex-wrap gap-2 text-gray-700 dark:text-gray-300">
                         <h3 className={`font-bold text-lg text-indigo-600 dark:text-indigo-400 ${task.completed ? 'line-through' : ''}`}>{task.title}</h3>
-                        {task.recurring && !task.completed && <RepeatIcon />}
                         {lastTouchedDaysAgo !== null && !task.completed && (
                             <span className="flex items-center text-xs text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded-full font-medium whitespace-nowrap">
                                 <ClockIcon className="h-4 w-4 mr-1" />

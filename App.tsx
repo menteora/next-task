@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Task, Subtask } from './types';
 import TaskItem from './components/TaskItem';
@@ -73,7 +74,6 @@ const App: React.FC = () => {
 
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDescription, setNewTaskDescription] = useState('');
-  const [isNewTaskRecurring, setIsNewTaskRecurring] = useState(false);
   const [isFormVisible, setIsFormVisible] = useState(false);
   
   const [modalTask, setModalTask] = useState<Task | null>(null);
@@ -199,7 +199,7 @@ const App: React.FC = () => {
         completed: st.completed,
         dueDate: st.due_date,
         completionDate: st.completion_date,
-        isInstance: st.is_instance,
+        recurrence: st.recurrence,
         order: st.order,
       };
       const existing = subtasksByTaskId.get(st.task_id) || [];
@@ -213,7 +213,6 @@ const App: React.FC = () => {
       description: t.description,
       completed: t.completed,
       completionDate: t.completion_date,
-      recurring: t.recurring,
       snoozeUntil: t.snooze_until,
       order: t.order,
       subtasks: subtasksByTaskId.get(t.id) || [],
@@ -435,7 +434,6 @@ const App: React.FC = () => {
       const { data, error } = await supabase.from('online_tasks').insert({
         title: newTaskTitle.trim(),
         description: newTaskDescription.trim(),
-        recurring: isNewTaskRecurring,
         user_id: supabaseSession.user.id,
         order: maxOrder + 1
       }).select().single();
@@ -448,7 +446,6 @@ const App: React.FC = () => {
           title: data.title,
           description: data.description,
           completed: data.completed,
-          recurring: data.recurring,
           order: data.order,
           subtasks: [],
         };
@@ -462,7 +459,6 @@ const App: React.FC = () => {
         title: newTaskTitle.trim(),
         description: newTaskDescription.trim(),
         subtasks: [],
-        recurring: isNewTaskRecurring,
         completed: false,
         order: maxOrder + 1,
       };
@@ -470,7 +466,6 @@ const App: React.FC = () => {
     }
     setNewTaskTitle('');
     setNewTaskDescription('');
-    setIsNewTaskRecurring(false);
     setIsFormVisible(false);
   };
 
@@ -505,11 +500,10 @@ const App: React.FC = () => {
   }, [tasks, handleDeleteTask]);
 
   const handleUpdateTask = useCallback(async (updatedTask: Task) => {
-    if (isOnlineMode && supabase) {
+    if (isOnlineMode && supabase && supabaseSession) {
         const { error } = await supabase.from('online_tasks').update({
             title: updatedTask.title,
             description: updatedTask.description,
-            recurring: updatedTask.recurring,
             snooze_until: updatedTask.snoozeUntil,
             completed: updatedTask.completed,
             completion_date: updatedTask.completionDate,
@@ -522,17 +516,15 @@ const App: React.FC = () => {
         const onlineSubtasks = updatedTask.subtasks.map(st => ({
             id: st.id,
             task_id: updatedTask.id,
-            user_id: supabaseSession?.user.id,
+            user_id: supabaseSession.user.id,
             text: st.text,
             completed: st.completed,
             due_date: st.dueDate,
             completion_date: st.completionDate,
-            is_instance: st.isInstance,
+            recurrence: st.recurrence,
             order: st.order,
         }));
 
-        // In a real app you might do more granular subtask updates
-        // For simplicity here, we delete and re-insert
         await supabase.from('online_subtasks').delete().match({ task_id: updatedTask.id });
         const { error: subtaskError } = await supabase.from('online_subtasks').upsert(onlineSubtasks);
 
@@ -612,54 +604,25 @@ const App: React.FC = () => {
   }, [isOnlineMode, supabase]);
 
   const handleSetSubtaskDueDate = useCallback(async (subtaskId: string, taskId: string, date: string) => {
-      let finalTask: Task | undefined;
-      const task = tasks.find(t => t.id === taskId);
-      if (!task) return;
-      
-      const subtaskIndex = task.subtasks.findIndex(st => st.id === subtaskId);
-      if (subtaskIndex === -1) return;
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
 
-      if (task.recurring) {
-          const originalSubtask = task.subtasks[subtaskIndex];
-          const maxOrder = task.subtasks.reduce((max, st) => Math.max(st.order, max), -1);
-          const newInstance: Subtask = {
-              ...originalSubtask,
-              id: crypto.randomUUID(),
-              completed: false,
-              dueDate: date,
-              isInstance: true,
-              completionDate: undefined,
-              order: maxOrder + 1
-          };
-          finalTask = { ...task, subtasks: [...task.subtasks, newInstance] };
+    if (isOnlineMode && supabase) {
+        await supabase.from('online_subtasks').update({ due_date: date }).match({ id: subtaskId });
+    }
 
-          if (isOnlineMode && supabase && supabaseSession) {
-              await supabase.from('online_subtasks').insert({
-                  id: newInstance.id,
-                  task_id: taskId,
-                  user_id: supabaseSession.user.id,
-                  text: newInstance.text,
-                  due_date: date,
-                  is_instance: true,
-                  order: newInstance.order
-              });
-          }
-      } else {
-          const updatedSubtasks = [...task.subtasks];
-          updatedSubtasks[subtaskIndex] = { ...updatedSubtasks[subtaskIndex], dueDate: date };
-          finalTask = { ...task, subtasks: updatedSubtasks };
-          if (isOnlineMode && supabase) {
-              await supabase.from('online_subtasks').update({ due_date: date }).match({ id: subtaskId });
-          }
-      }
+    const updatedTask = {
+        ...task,
+        subtasks: task.subtasks.map(st =>
+            st.id === subtaskId ? { ...st, dueDate: date } : st
+        )
+    };
 
-      if (finalTask) {
-        setTasks(prevTasks => prevTasks.map(t => t.id === taskId ? finalTask! : t));
-        if (modalTask?.id === taskId) {
-            setModalTask(finalTask);
-        }
-      }
-  }, [tasks, isOnlineMode, supabase, modalTask, supabaseSession]);
+    setTasks(prevTasks => prevTasks.map(t => t.id === taskId ? updatedTask : t));
+    if (modalTask?.id === taskId) {
+        setModalTask(updatedTask);
+    }
+  }, [tasks, isOnlineMode, supabase, modalTask]);
 
 
   const handleToggleTodaySubtaskComplete = useCallback(async (subtaskId: string, taskId: string) => {
@@ -667,46 +630,94 @@ const App: React.FC = () => {
     const subtask = task?.subtasks.find(st => st.id === subtaskId);
     if (!task || !subtask) return;
 
-    const isCompleted = !subtask.completed;
-    const completionDate = isCompleted ? new Date().toISOString() : undefined;
+    const isCompleting = !subtask.completed;
+    const completionDate = isCompleting ? new Date().toISOString() : undefined;
+    let newSubtask: Subtask | null = null;
 
-    if (isOnlineMode && supabase) {
+    if (isCompleting && subtask.recurrence) {
+        const { unit, value } = subtask.recurrence;
+        const baseDate = new Date();
+        let nextDueDate = new Date(baseDate);
+
+        if (unit === 'day') nextDueDate.setDate(nextDueDate.getDate() + value);
+        else if (unit === 'week') nextDueDate.setDate(nextDueDate.getDate() + (value * 7));
+        else if (unit === 'month') nextDueDate.setMonth(nextDueDate.getMonth() + value);
+        else if (unit === 'year') nextDueDate.setFullYear(nextDueDate.getFullYear() + value);
+        
+        const maxOrder = task.subtasks.reduce((max, st) => Math.max(st.order, max), -1);
+        
+        newSubtask = {
+            ...subtask,
+            id: crypto.randomUUID(),
+            completed: false,
+            dueDate: nextDueDate.toISOString().split('T')[0],
+            completionDate: undefined,
+            order: maxOrder + 1,
+        };
+    }
+
+    if (isOnlineMode && supabase && supabaseSession) {
       await supabase.from('online_subtasks').update({
-        completed: isCompleted,
+        completed: isCompleting,
         completion_date: completionDate,
       }).match({id: subtaskId});
+      
+      if (newSubtask) {
+          await supabase.from('online_subtasks').insert({
+              id: newSubtask.id,
+              task_id: taskId,
+              user_id: supabaseSession.user.id,
+              text: newSubtask.text,
+              completed: false,
+              due_date: newSubtask.dueDate,
+              recurrence: newSubtask.recurrence,
+              order: newSubtask.order,
+          });
+      }
     }
 
     setTasks(prevTasks => 
         prevTasks.map(t => {
             if (t.id !== taskId) return t;
+            
+            let updatedSubtasks = t.subtasks.map(st => 
+                st.id === subtaskId ? { ...st, completed: isCompleting, completionDate } : st
+            );
+            
+            if (newSubtask) {
+                updatedSubtasks.push(newSubtask);
+            }
+            
+            const incomplete = updatedSubtasks.filter(st => !st.completed).sort((a,b) => a.order - b.order);
+            const completed = updatedSubtasks.filter(st => st.completed).sort((a,b) => {
+              if(!a.completionDate) return 1;
+              if(!b.completionDate) return -1;
+              return new Date(b.completionDate).getTime() - new Date(a.completionDate).getTime();
+            });
+
+            const finalSubtasks = [...incomplete, ...completed].map((st, index) => ({...st, order: index}));
+
             return {
                 ...t,
-                subtasks: t.subtasks.map(st => 
-                    st.id === subtaskId ? { ...st, completed: isCompleted, completionDate } : st
-                ),
+                subtasks: finalSubtasks,
             };
         })
     );
-}, [tasks, isOnlineMode, supabase]);
+}, [tasks, isOnlineMode, supabase, supabaseSession]);
 
   const handleUnsetSubtaskDueDate = useCallback(async (subtaskId: string, taskId: string) => {
     const task = tasks.find(t => t.id === taskId);
-    const subtask = task?.subtasks.find(st => st.id === subtaskId);
-    if (!task || !subtask) return;
+    if (!task) return;
     
-    let updatedTask: Task;
-
-    if (subtask.isInstance) {
-        if(isOnlineMode && supabase) await supabase.from('online_subtasks').delete().match({id: subtaskId});
-        updatedTask = { ...task, subtasks: task.subtasks.filter(st => st.id !== subtaskId) };
-    } else {
-        if(isOnlineMode && supabase) await supabase.from('online_subtasks').update({ due_date: null }).match({id: subtaskId});
-        const updatedSubtasks = task.subtasks.map(st =>
-            st.id === subtaskId ? { ...st, dueDate: undefined } : st
-        );
-        updatedTask = { ...task, subtasks: updatedSubtasks };
+    if(isOnlineMode && supabase) {
+        await supabase.from('online_subtasks').update({ due_date: null }).match({id: subtaskId});
     }
+
+    const updatedSubtasks = task.subtasks.map(st =>
+        st.id === subtaskId ? { ...st, dueDate: undefined } : st
+    );
+    const updatedTask = { ...task, subtasks: updatedSubtasks };
+    
     setTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
 
   }, [tasks, isOnlineMode, supabase]);
@@ -716,7 +727,6 @@ const App: React.FC = () => {
     if (!taskToUpdate) return;
     
     const updatedTask = { ...taskToUpdate, description: newDescription };
-    // This will call the existing update logic (local + supabase)
     await handleUpdateTask(updatedTask);
   }, [tasks, handleUpdateTask]);
   
@@ -918,7 +928,6 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
               subtasks: (task.subtasks || []).map((st: any, stIndex: number) => ({
                 ...st,
                 order: st.order ?? stIndex,
-                isInstance: st.isInstance ?? false,
               }))
             }));
 
@@ -969,439 +978,240 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
           .single();
 
         if (error || !data) {
-            setStatusMessage({ type: 'error', text: `Import failed: ${error?.message || 'No data found.'}` });
-        } else if (data) {
-            setTasks(data.data || []);
-            setTodayOrder([]);
-            setStatusMessage({ type: 'success', text: "Latest revision successfully imported!" });
+            setStatusMessage({ type: 'error', text: `Import failed: ${error ? error.message : "No data found."}` });
+        } else {
+            const importedTasks = (data.data as any) || [];
+            if (Array.isArray(importedTasks)) {
+                setTasks(importedTasks);
+                setStatusMessage({ type: 'success', text: "Successfully imported latest revision from Supabase!" });
+            } else {
+                setStatusMessage({ type: 'error', text: "Import failed: Invalid data format in Supabase." });
+            }
         }
       }
-      
       setIsSupabaseLoading(false);
       setSupabaseAction(null);
-      setTimeout(() => setStatusMessage(null), 5000);
-  };
-  
-  const handlePasswordConfirm = async () => {
-    if (!supabase || !supabaseConfig || !supabaseAction) return;
-
-    setIsSupabaseLoading(true);
-    setStatusMessage(null);
-
-    const { data, error } = await supabase.auth.signInWithPassword({
-        email: supabaseConfig.email,
-        password: password,
-    });
-
-    if (error) {
-        setStatusMessage({ type: 'error', text: error.message });
-        setIsSupabaseLoading(false);
-        setPassword('');
-    } else if (data.session) {
-        setIsPasswordModalOpen(false);
-        setPassword('');
-        await executeSupabaseAction(supabaseAction, data.session);
-    }
-  };
-
-  const triggerSupabaseAction = async (action: SupabaseAction) => {
-      if (!supabase) return;
-
-      setSupabaseAction(action);
-      
-      if (supabaseSession) {
-          await executeSupabaseAction(action, supabaseSession);
-      } else {
-          setIsPasswordModalOpen(true);
-      }
-  };
-
-  const requestSupabaseImport = () => {
-    setConfirmationState({
-      isOpen: true,
-      title: 'Confirm Import from Cloud',
-      message: 'This will overwrite all your local tasks with the latest version from the cloud. Are you sure you want to continue?',
-      confirmText: 'Import & Overwrite',
-      confirmClass: 'bg-indigo-600 hover:bg-indigo-700',
-      onConfirm: () => {
-        triggerSupabaseAction('import');
-        closeConfirmationModal();
-      },
-    });
-  };
-  
-  const handleLogout = async () => {
-    if (!supabase) return;
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-        setStatusMessage({ type: 'error', text: `Logout failed: ${error.message}` });
-    } else {
-        setStatusMessage({ type: 'success', text: 'Successfully logged out.' });
-    }
-    setTimeout(() => setStatusMessage(null), 3000);
-  }
-  
-  // MIGRATION AND MODE SWITCHING LOGIC
-  
-  const clearLocalStorage = () => {
-    localStorage.removeItem('backlogTasks');
-    localStorage.removeItem('todayOrder');
-    localStorage.removeItem('selectedTags');
+      setIsPasswordModalOpen(false);
+      setPassword('');
+      setTimeout(() => setStatusMessage(null), 3000);
   };
 
   const handleMigrateToOnline = async () => {
     if (!supabase || !supabaseSession) {
-      setStatusMessage({type: 'error', text: 'You must be logged in to migrate.'});
+      setStatusMessage({type: 'error', text: 'Supabase is not configured or you are not logged in.'});
       return;
     }
-    setIsLoading(true);
     
-    // Sanitize local tasks before migration to ensure `order` property exists.
-    const sanitizedLocalTasks = tasks.map((task, taskIndex) => ({
-      ...task,
-      order: task.order ?? taskIndex,
-      subtasks: (task.subtasks || []).map((subtask, subtaskIndex) => ({
-        ...subtask,
-        order: subtask.order ?? subtaskIndex,
-        isInstance: subtask.isInstance ?? false,
-      })),
-    }));
-    
-    // Clear online tables
-    await supabase.from('online_subtasks').delete().eq('user_id', supabaseSession.user.id);
-    await supabase.from('online_tasks').delete().eq('user_id', supabaseSession.user.id);
+    setConfirmationState({
+      isOpen: true,
+      title: 'Migrate to Online Mode',
+      message: 'This will overwrite your existing online data with your current local data. This action cannot be undone. Are you sure you want to proceed?',
+      confirmText: 'Migrate & Overwrite',
+      confirmClass: 'bg-red-600 hover:bg-red-700',
+      onConfirm: async () => {
+        closeConfirmationModal();
+        setIsLoading(true);
 
-    const onlineTasks = sanitizedLocalTasks.map(t => ({
-      id: t.id,
-      user_id: supabaseSession.user.id,
-      title: t.title,
-      description: t.description,
-      completed: t.completed,
-      recurring: t.recurring,
-      snooze_until: t.snoozeUntil,
-      completion_date: t.completionDate,
-      order: t.order,
-    }));
+        try {
+          await supabase.from('online_subtasks').delete().eq('user_id', supabaseSession.user.id);
+          await supabase.from('online_tasks').delete().eq('user_id', supabaseSession.user.id);
 
-    const { error: tasksError } = await supabase.from('online_tasks').insert(onlineTasks);
-    if(tasksError) {
-       setStatusMessage({type: 'error', text: `Migration error (tasks): ${tasksError.message}`});
-       setIsLoading(false);
-       return;
-    }
-    
-    const allSubtasks = sanitizedLocalTasks.flatMap(t => t.subtasks.map(st => ({...st, task_id: t.id, user_id: supabaseSession.user.id})));
-    const onlineSubtasks = allSubtasks.map(st => ({
-        id: st.id,
-        task_id: st.task_id,
-        user_id: st.user_id,
-        text: st.text,
-        completed: st.completed,
-        due_date: st.dueDate,
-        completion_date: st.completionDate,
-        is_instance: st.isInstance,
-        order: st.order
-    }));
+          const onlineTasks = tasks.map(t => ({
+            id: t.id,
+            user_id: supabaseSession.user.id,
+            title: t.title,
+            description: t.description,
+            completed: t.completed,
+            completion_date: t.completionDate,
+            snooze_until: t.snoozeUntil,
+            order: t.order,
+          }));
 
-    if (onlineSubtasks.length > 0) {
-        const { error: subtasksError } = await supabase.from('online_subtasks').insert(onlineSubtasks);
-        if(subtasksError) {
-            setStatusMessage({type: 'error', text: `Migration error (subtasks): ${subtasksError.message}`});
-            setIsLoading(false);
-            return;
+          const onlineSubtasks = tasks.flatMap(t => t.subtasks.map(st => ({
+            id: st.id,
+            task_id: t.id,
+            user_id: supabaseSession.user.id,
+            text: st.text,
+            completed: st.completed,
+            due_date: st.dueDate,
+            completion_date: st.completionDate,
+            recurrence: st.recurrence,
+            order: st.order,
+          })));
+
+          const { error: tasksError } = await supabase.from('online_tasks').upsert(onlineTasks);
+          if (tasksError) throw tasksError;
+
+          const { error: subtasksError } = await supabase.from('online_subtasks').upsert(onlineSubtasks);
+          if (subtasksError) throw subtasksError;
+
+          setStatusMessage({type: 'success', text: 'Successfully migrated local data to online mode!'});
+          setIsOnlineMode(true);
+
+        } catch (error: any) {
+          setStatusMessage({type: 'error', text: `Migration failed: ${error.message}`});
+        } finally {
+          setIsLoading(false);
+          setTimeout(() => setStatusMessage(null), 5000);
         }
-    }
-    
-    setStatusMessage({type: 'success', text: 'Successfully migrated to online mode!'});
-    setIsOnlineMode(true);
-    
-    // Clear local storage to prevent confusion and data conflicts
-    clearLocalStorage();
-
-    setIsLoading(false);
+      },
+    });
   };
 
   const handleMigrateToLocal = async () => {
-    if (!supabase || !supabaseSession) return;
-    setIsLoading(true);
-    await fetchOnlineTasks(supabase);
-    // fetchOnlineTasks updates the `tasks` state, the useEffect for `tasks` will save it to localStorage.
-    setStatusMessage({type: 'success', text: 'Successfully migrated to local mode!'});
-    setIsOnlineMode(false);
-    setIsLoading(false);
-  };
-  
-  const handleToggleOnlineMode = (enabled: boolean) => {
-    if (enabled && !isOnlineMode) {
-        // Switching from Local to Online
-        const localTasksExist = localStorage.getItem('backlogTasks') && JSON.parse(localStorage.getItem('backlogTasks')!).length > 0;
-
-        if (localTasksExist) {
-            setConfirmationState({
-                isOpen: true,
-                title: 'Switch to Online Mode?',
-                message: 'You have local data that has not been migrated. Switching to Online Mode will clear this local data to prevent conflicts. Your local data will be lost unless you export it first or migrate it. Are you sure you want to proceed?',
-                confirmText: 'Switch & Clear Data',
-                confirmClass: 'bg-yellow-600 hover:bg-yellow-700',
-                onConfirm: () => {
-                    clearLocalStorage();
-                    setIsOnlineMode(true);
-                    closeConfirmationModal();
-                },
-            });
-        } else {
-            // No local data, just switch
-            setIsOnlineMode(true);
-        }
-    } else if (!enabled && isOnlineMode) {
-        // Switching from Online to Local
-        // This is safe, it will just load whatever is (or isn't) in localStorage
-        setIsOnlineMode(false);
+    if (!supabase || !supabaseSession) {
+      setStatusMessage({type: 'error', text: 'Supabase is not configured or you are not logged in.'});
+      return;
     }
-  };
 
+    setConfirmationState({
+      isOpen: true,
+      title: 'Migrate to Local Mode',
+      message: 'This will overwrite your current local data with your latest online data. This action cannot be undone. Are you sure?',
+      confirmText: 'Migrate & Overwrite',
+      confirmClass: 'bg-red-600 hover:bg-red-700',
+      onConfirm: async () => {
+        closeConfirmationModal();
+        await fetchOnlineTasks(supabase);
+        setIsOnlineMode(false);
+        setStatusMessage({ type: 'success', text: 'Successfully migrated online data to local mode!' });
+        setTimeout(() => setStatusMessage(null), 3000);
+      },
+    });
+  };
 
   return (
-    <div className="min-h-screen font-sans">
-      <div className="container mx-auto max-w-3xl px-2 py-4 sm:px-4 sm:py-8">
-        <header className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 sm:mb-8">
-          <div className="w-full">
-            <h1 className="text-4xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-blue-600 dark:from-indigo-400 dark:to-blue-500">
-              Next Task
-            </h1>
-            <p className="text-gray-500 dark:text-gray-400 mt-2 text-sm sm:text-base">Organize your work, focus on the next action.</p>
+    <div className={`min-h-screen ${theme === 'dark' ? 'dark' : ''} bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-white`}>
+      {modalTask && (
+        <SubtaskModal
+          task={modalTask}
+          onClose={handleCloseModal}
+          onUpdateTask={handleUpdateTask}
+          onSetSubtaskDueDate={handleSetSubtaskDueDate}
+        />
+      )}
+      <ConfirmationModal {...confirmationState} onClose={closeConfirmationModal} />
+
+      <div className="container mx-auto p-2 sm:p-4 max-w-5xl">
+        <header className="mb-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+            <h1 className="text-3xl sm:text-4xl font-bold text-indigo-600 dark:text-indigo-400">Backlog</h1>
+            <div className="flex items-center space-x-2 mt-3 sm:mt-0">
+              <span className={`text-xs font-semibold px-2 py-1 rounded-full ${isOnlineMode ? 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200'}`}>
+                {isOnlineMode ? 'Online' : 'Local'}
+              </span>
+              <button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                {theme === 'light' ? <MoonIcon /> : <SunIcon />}
+              </button>
+            </div>
           </div>
-          <div className="flex items-center space-x-1 sm:space-x-2 self-end sm:self-center mt-4 sm:mt-0 flex-shrink-0">
-            {supabaseConfig?.url && !isOnlineMode && (
-              <>
-                {supabaseSession && (
-                   <button
-                        onClick={handleLogout}
-                        className="p-2 rounded-full bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-800 transition-colors"
-                        aria-label="Logout from Supabase"
-                        title="Logout from Supabase"
-                    >
-                        <LogOutIcon />
-                    </button>
-                )}
-                <button
-                    onClick={requestSupabaseImport}
-                    className="p-2 rounded-full bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
-                    aria-label="Import from Supabase"
-                    title="Import from Supabase"
-                    disabled={isSupabaseLoading}
-                >
-                    {isSupabaseLoading && supabaseAction === 'import' ? <SpinnerIcon/> : <CloudDownloadIcon />}
-                </button>
-                 <button
-                    onClick={() => triggerSupabaseAction('export')}
-                    className="p-2 rounded-full bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
-                    aria-label="Export to Supabase"
-                    title="Export to Supabase"
-                    disabled={isSupabaseLoading}
-                >
-                    {isSupabaseLoading && supabaseAction === 'export' ? <SpinnerIcon/> : <CloudUploadIcon />}
-                </button>
-              </>
-            )}
-            {!isOnlineMode && (
-              <>
-                <button
-                    onClick={handleExportTasks}
-                    className="p-2 rounded-full bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
-                    aria-label="Export tasks"
-                    title="Export tasks"
-                >
-                    <DownloadIcon />
-                </button>
-                <button
-                    onClick={handleImportClick}
-                    className="p-2 rounded-full bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
-                    aria-label="Import tasks"
-                    title="Import tasks"
-                >
-                    <UploadIcon />
-                </button>
-              </>
-            )}
-            <button
-              onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-              className="p-2 rounded-full bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
-              aria-label="Toggle theme"
-            >
-              {theme === 'light' ? <MoonIcon /> : <SunIcon />}
-            </button>
-            <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                accept="application/json"
-                className="hidden"
-            />
-          </div>
+          <nav className="mt-4 flex flex-wrap gap-2">
+            <button onClick={() => setView('backlog')} className={`px-3 py-1.5 text-sm font-semibold rounded-md ${view === 'backlog' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'}`}><ListIcon className="h-5 w-5 inline mr-1"/>Backlog</button>
+            <button onClick={() => setView('today')} className={`px-3 py-1.5 text-sm font-semibold rounded-md ${view === 'today' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'}`}><CalendarIcon className="h-5 w-5 inline mr-1"/>Today</button>
+            <button onClick={() => setView('snoozed')} className={`px-3 py-1.5 text-sm font-semibold rounded-md ${view === 'snoozed' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'}`}><SnoozeIcon className="h-5 w-5 inline mr-1"/>Snoozed</button>
+            <button onClick={() => setView('archive')} className={`px-3 py-1.5 text-sm font-semibold rounded-md ${view === 'archive' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'}`}><ArchiveIcon className="h-5 w-5 inline mr-1"/>Archive</button>
+            <button onClick={() => setView('stats')} className={`px-3 py-1.5 text-sm font-semibold rounded-md ${view === 'stats' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'}`}><BarChartIcon className="h-5 w-5 inline mr-1"/>Stats</button>
+            <button onClick={() => setView('settings')} className={`px-3 py-1.5 text-sm font-semibold rounded-md ${view === 'settings' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'}`}><SettingsIcon className="h-5 w-5 inline mr-1"/>Settings</button>
+          </nav>
         </header>
 
         {statusMessage && (
-            <div className={`p-3 rounded-md mb-4 text-center ${statusMessage.type === 'success' ? 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300' : 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-300'}`}>
-                {statusMessage.text}
-            </div>
+          <div className={`mb-4 p-3 rounded-md text-sm font-medium ${statusMessage.type === 'success' ? 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200' : 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200'}`}>
+            {statusMessage.text}
+          </div>
         )}
 
-        <div className="flex justify-center mb-6 sm:mb-8 bg-gray-200 dark:bg-gray-800 rounded-lg p-1">
-            <button
-                onClick={() => setView('backlog')}
-                className={`flex-1 py-2 px-1 sm:px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'backlog' ? 'bg-indigo-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
-                aria-label="Backlog View"
-            >
-                <ListIcon />
-            </button>
-            <button
-                onClick={() => setView('today')}
-                className={`flex-1 py-2 px-1 sm:px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'today' ? 'bg-indigo-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
-                aria-label="Today View"
-            >
-                <CalendarIcon />
-            </button>
-            <button
-                onClick={() => setView('snoozed')}
-                className={`flex-1 py-2 px-1 sm:px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'snoozed' ? 'bg-indigo-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
-                aria-label="Snoozed View"
-            >
-                <SnoozeIcon />
-            </button>
-             <button
-                onClick={() => setView('archive')}
-                className={`flex-1 py-2 px-1 sm:px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'archive' ? 'bg-indigo-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
-                aria-label="Archive View"
-            >
-                <ArchiveIcon />
-            </button>
-            <button
-                onClick={() => setView('stats')}
-                className={`flex-1 py-2 px-1 sm:px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'stats' ? 'bg-indigo-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
-                aria-label="Stats View"
-            >
-                <BarChartIcon />
-            </button>
-            <button
-                onClick={() => setView('settings')}
-                className={`flex-1 py-2 px-1 sm:px-4 rounded-md transition-all duration-300 flex justify-center items-center ${view === 'settings' ? 'bg-indigo-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
-                aria-label="Settings View"
-            >
-                <SettingsIcon />
-            </button>
-        </div>
+        {isSupabaseLoading && <div className="flex items-center justify-center my-4"><SpinnerIcon /> <span className="ml-2">Contacting Supabase...</span></div>}
+        {isLoading && <div className="flex items-center justify-center my-4"><SpinnerIcon /> <span className="ml-2">Loading data...</span></div>}
 
-        <main>
-          {isLoading && (
-              <div className="flex justify-center items-center p-10">
-                  <SpinnerIcon className="h-10 w-10 text-indigo-500" />
-              </div>
-          )}
-          {!isLoading && view === 'backlog' && (
-            <>
-            <div className="flex flex-col sm:flex-row justify-between items-start mb-6 gap-4">
-                {allTags.length > 0 && (
-                    <div className="p-3 sm:p-4 bg-white dark:bg-gray-800 rounded-lg flex-grow w-full">
-                        <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-3">Filter by tags:</h3>
-                        <div className="flex flex-wrap gap-2">
-                            {allTags.map(tag => (
-                                <button
-                                    key={tag}
-                                    onClick={() => handleTagClick(tag)}
-                                    className={`px-3 py-1 text-sm rounded-full transition-colors ${
-                                        selectedTags.includes(tag)
-                                            ? 'bg-indigo-600 text-white font-semibold'
-                                            : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'
-                                    }`}
-                                >
-                                    {tag}
-                                </button>
-                            ))}
-                        </div>
-                        {selectedTags.length > 0 && (
-                            <button onClick={() => setSelectedTags([])} className="text-xs text-indigo-600 dark:text-indigo-500 hover:underline mt-4">
-                                Clear filters
-                            </button>
-                        )}
-                    </div>
-                )}
-                
-                {tasks.filter(t => !t.completed).length > 0 && (
-                    <div className="flex items-center gap-2 self-end sm:self-center flex-shrink-0">
-                        <div className="relative">
-                            <select
-                                id="sort-order"
-                                value={sortOption}
-                                onChange={e => setSortOption(e.target.value as SortOption)}
-                                className="appearance-none bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
-                                aria-label="Sort tasks"
-                            >
-                                <option value="manual">Ordina: Manuale</option>
-                                <option value="days_passed">Ordina: Ultima azione</option>
-                            </select>
-                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-300">
-                                <ChevronDownIcon className="h-4 w-4" />
-                            </div>
-                        </div>
 
-                        <button 
-                            onClick={() => setIsCompactView(!isCompactView)} 
-                            className="p-2.5 rounded-md bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                            aria-label={isCompactView ? "Expand view" : "Compact view"}
-                            title={isCompactView ? "Expand view" : "Compact view"}
-                        >
-                            {isCompactView ? <ArrowsPointingOutIcon /> : <ArrowsPointingInIcon />}
-                        </button>
-                    </div>
-                )}
-            </div>
-            <div className="mb-6 sm:mb-8">
-                {!isFormVisible ? (
-                  <button
-                    onClick={() => setIsFormVisible(true)}
-                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center transition-all shadow-md hover:shadow-lg"
-                  >
-                    <PlusIcon />
-                    <span className="ml-2">Add New Task</span>
-                  </button>
-                ) : (
-                  <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md space-y-4 animate-fade-in-down">
-                    <input
-                      type="text"
-                      value={newTaskTitle}
-                      onChange={(e) => setNewTaskTitle(e.target.value)}
-                      placeholder="Task Title"
-                      className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-500 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      autoFocus
-                    />
-                    <MarkdownInput 
-                      value={newTaskDescription}
-                      onChange={setNewTaskDescription}
-                      placeholder="Description... use #tag to add tags"
-                    />
-                     <div className="flex items-center">
-                       <input
-                            type="checkbox"
-                            id="new-task-recurring"
-                            checked={isNewTaskRecurring}
-                            onChange={e => setIsNewTaskRecurring(e.target.checked)}
-                            className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-gray-200 dark:bg-gray-700 text-teal-600 dark:text-teal-500 focus:ring-teal-500 dark:focus:ring-teal-600 cursor-pointer"
-                        />
-                        <label htmlFor="new-task-recurring" className="ml-2 text-sm text-gray-500 dark:text-gray-400">Recurring Task</label>
-                    </div>
-
-                    <div className="flex justify-end space-x-2">
-                       <button onClick={() => setIsFormVisible(false)} className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md transition-colors">
-                        Cancel
-                      </button>
-                      <button onClick={handleAddTask} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition-colors">
-                        Add Task
-                      </button>
-                    </div>
+        {view === 'backlog' && (
+          <>
+            <div className="mb-6">
+              {!isFormVisible ? (
+                <button onClick={() => setIsFormVisible(true)} className="w-full bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 text-indigo-600 dark:text-indigo-400 font-bold py-3 px-4 rounded-lg shadow-md transition-colors flex items-center justify-center">
+                  <PlusIcon className="mr-2"/> Add New Task
+                </button>
+              ) : (
+                <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md space-y-4">
+                  <input
+                    autoFocus
+                    type="text"
+                    value={newTaskTitle}
+                    onChange={(e) => setNewTaskTitle(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleAddTask()}
+                    placeholder="New task title..."
+                    className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-500 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <MarkdownInput
+                    value={newTaskDescription}
+                    onChange={setNewTaskDescription}
+                    placeholder="Add description... use #tag for tags"
+                  />
+                   {allTags.length > 0 && (
+                      <div className="pt-1">
+                          <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Available tags:</h4>
+                          <div className="flex flex-wrap gap-1">
+                          {allTags.map(tag => (
+                              <button 
+                              key={tag} 
+                              onClick={() => handleAddTagToDescription(tag, setNewTaskDescription)}
+                              className="px-2 py-0.5 text-xs rounded-full bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 transition-colors"
+                              >
+                              {tag}
+                              </button>
+                          ))}
+                          </div>
+                      </div>
+                  )}
+                  <div className="flex justify-end space-x-2">
+                    <button onClick={() => setIsFormVisible(false)} className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md transition-colors">
+                      Cancel
+                    </button>
+                    <button onClick={handleAddTask} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition-colors">
+                      Add Task
+                    </button>
                   </div>
-                )}
+                </div>
+              )}
             </div>
+
+            <div className="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div className="flex items-center space-x-2">
+                  <label htmlFor="sort-select" className="text-sm font-medium text-gray-600 dark:text-gray-300">Sort by:</label>
+                  <select
+                      id="sort-select"
+                      value={sortOption}
+                      onChange={(e) => setSortOption(e.target.value as SortOption)}
+                      className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  >
+                      <option value="manual">Manual</option>
+                      <option value="days_passed">Days Since Last Action</option>
+                  </select>
+                  <button onClick={() => setIsCompactView(!isCompactView)} className="p-1.5 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700" title={isCompactView ? "Expand view" : "Compact view"}>
+                      {isCompactView ? <ArrowsPointingOutIcon /> : <ArrowsPointingInIcon />}
+                  </button>
+              </div>
+              {allTags.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                      {allTags.map(tag => (
+                          <button
+                              key={tag}
+                              onClick={() => handleTagClick(tag)}
+                              className={`px-2 py-0.5 text-xs rounded-full transition-colors ${selectedTags.includes(tag) ? 'bg-indigo-600 text-white' : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600'}`}
+                          >
+                              {tag}
+                          </button>
+                      ))}
+                      {selectedTags.length > 0 && (
+                          <button onClick={() => setSelectedTags([])} className="px-2 py-0.5 text-xs rounded-full bg-red-500 text-white hover:bg-red-600">
+                              Clear
+                          </button>
+                      )}
+                  </div>
+              )}
+            </div>
+
             <div>
               {sortedAndFilteredTasks.map((task, index) => (
                 <TaskItem
@@ -1427,192 +1237,152 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
                 />
               ))}
               {sortedAndFilteredTasks.length === 0 && (
-                <p className="text-center text-gray-500 dark:text-gray-400 italic py-8">
-                    No active tasks. Add one to get started!
-                </p>
-              )}
-            </div>
-            </>
-          )}
-
-          {!isLoading && view === 'today' && (
-            <div className="space-y-4 animate-fade-in-down">
-              {incompleteTodaySubtasks.length > 0 && (
-                 <div>
-                    <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 px-1 pt-2 mb-2">To Do</h3>
-                    {incompleteTodaySubtasks.map((item, index) => (
-                      <TodaySubtaskItem
-                        key={item.subtask.id}
-                        item={{
-                            subtask: item.subtask,
-                            parentTaskTitle: item.parentTask.title,
-                            parentTaskDescription: item.parentTask.description,
-                            parentTaskId: item.parentTask.id,
-                        }}
-                        onToggleComplete={() => handleToggleTodaySubtaskComplete(item.subtask.id, item.parentTask.id)}
-                        onRemove={() => handleUnsetSubtaskDueDate(item.subtask.id, item.parentTask.id)}
-                        onDragStart={() => onTodayDragStart(item)}
-                        onDragOver={(e) => e.preventDefault()}
-                        onDrop={() => onTodayDrop(item)}
-                        isDragging={draggedTodayItem?.subtask.id === item.subtask.id}
-                        onMoveSubtask={handleMoveTodaySubtask}
-                        subtaskIndex={index}
-                        totalSubtasks={incompleteTodaySubtasks.length}
-                        onUpdateParentTaskDescription={handleUpdateParentTaskDescription}
-                        onUpdateSubtaskText={handleUpdateSubtaskText}
-                      />
-                    ))}
-                 </div>
-              )}
-              {completedTodaySubtasks.length > 0 && (
-                 <div>
-                    <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 px-1 pt-2 mb-2">Completed Today</h3>
-                    {completedTodaySubtasks.map(item => (
-                       <TodaySubtaskItem
-                        key={item.subtask.id}
-                        item={{
-                            subtask: item.subtask,
-                            parentTaskTitle: item.parentTask.title,
-                            parentTaskDescription: item.parentTask.description,
-                            parentTaskId: item.parentTask.id,
-                        }}
-                        onToggleComplete={() => handleToggleTodaySubtaskComplete(item.subtask.id, item.parentTask.id)}
-                        onRemove={() => handleUnsetSubtaskDueDate(item.subtask.id, item.parentTask.id)}
-                        onDragStart={() => {}} onDragOver={() => {}} onDrop={() => {}}
-                        isDragging={false}
-                        onMoveSubtask={() => {}}
-                        subtaskIndex={-1}
-                        totalSubtasks={0}
-                        onUpdateParentTaskDescription={handleUpdateParentTaskDescription}
-                        onUpdateSubtaskText={handleUpdateSubtaskText}
-                      />
-                    ))}
-                 </div>
-              )}
-              {todaySubtasks.length === 0 && (
-                 <p className="text-center text-gray-500 dark:text-gray-400 italic py-8">
-                    Nothing scheduled for today. Go to 'Manage Sub-tasks' to assign a date.
-                 </p>
-              )}
-            </div>
-          )}
-
-          {!isLoading && view === 'snoozed' && (
-             <div className="space-y-4 animate-fade-in-down">
-                {snoozedTasks.map((task, index) => (
-                    <TaskItem
-                        key={task.id}
-                        task={task}
-                        onDelete={requestDeleteTask}
-                        onUpdate={handleUpdateTask}
-                        onOpenSubtaskModal={handleOpenSubtaskModal}
-                        onDragStart={()=>{}}
-                        onDragOver={()=>{}}
-                        onDrop={()=>{}}
-                        isDragging={false}
-                        onSetSubtaskDueDate={handleSetSubtaskDueDate}
-                        onToggleTaskComplete={handleToggleTaskComplete}
-                        allTags={allTags}
-                        isCompactView={false}
-                        onMoveTask={()=>{}}
-                        taskIndex={index}
-                        totalTasks={snoozedTasks.length}
-                        onSnoozeTask={handleSnoozeTask}
-                        onUnsnoozeTask={handleUnsnoozeTask}
-                        isDraggable={false}
-                        onUpdateSubtaskText={handleUpdateSubtaskText}
-                    />
-                ))}
-                {snoozedTasks.length === 0 && (
-                    <p className="text-center text-gray-500 dark:text-gray-400 italic py-8">
-                        No snoozed tasks.
-                    </p>
-                )}
-             </div>
-          )}
-
-          {!isLoading && view === 'archive' && (
-             <div className="space-y-4 animate-fade-in-down">
-                {archivedTasks.map((task, index) => (
-                    <TaskItem
-                        key={task.id}
-                        task={task}
-                        onDelete={requestDeleteTask}
-                        onUpdate={handleUpdateTask}
-                        onOpenSubtaskModal={handleOpenSubtaskModal}
-                        onDragStart={()=>{}}
-                        onDragOver={()=>{}}
-                        onDrop={()=>{}}
-                        isDragging={false}
-                        onSetSubtaskDueDate={handleSetSubtaskDueDate}
-                        onToggleTaskComplete={handleToggleTaskComplete}
-                        allTags={allTags}
-                        isCompactView={false}
-                        onMoveTask={()=>{}}
-                        taskIndex={index}
-                        totalTasks={archivedTasks.length}
-                        onSnoozeTask={()=>{}}
-                        isDraggable={false}
-                        onUpdateSubtaskText={() => {}}
-                    />
-                ))}
-                {archivedTasks.length === 0 && (
-                    <p className="text-center text-gray-500 dark:text-gray-400 italic py-8">
-                        No completed tasks in the archive yet.
-                    </p>
-                )}
-             </div>
-          )}
-
-          {!isLoading && view === 'stats' && <StatsView tasks={tasks} />}
-          {!isLoading && view === 'settings' && (
-             <SettingsView
-                currentConfig={supabaseConfig}
-                onSave={handleSaveSupabaseConfig}
-                isOnlineMode={isOnlineMode}
-                onToggleOnlineMode={handleToggleOnlineMode}
-                onMigrateToOnline={handleMigrateToOnline}
-                onMigrateToLocal={handleMigrateToLocal}
-             />
-          )}
-
-        </main>
-      </div>
-
-      {modalTask && <SubtaskModal task={modalTask} onClose={handleCloseModal} onUpdateTask={handleUpdateTask} onSetSubtaskDueDate={handleSetSubtaskDueDate}/>}
-
-      {isPasswordModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex justify-center items-center z-50 animate-fade-in-down" style={{ animationDuration: '0.2s' }}>
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-sm p-6">
-                <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Enter Supabase Password</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">Enter the password for <strong>{supabaseConfig?.email}</strong>. This is not stored.</p>
-                <input
-                    type="password"
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    onKeyPress={e => e.key === 'Enter' && handlePasswordConfirm()}
-                    className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white rounded-md px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    autoFocus
-                />
-                <div className="flex justify-end space-x-2">
-                    <button onClick={() => { setIsPasswordModalOpen(false); setPassword(''); setSupabaseAction(null); }} className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md transition-colors">Cancel</button>
-                    <button onClick={handlePasswordConfirm} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition-colors" disabled={isSupabaseLoading}>
-                       {isSupabaseLoading ? <SpinnerIcon className="h-5 w-5"/> : 'Confirm'}
-                    </button>
+                <div className="text-center py-10">
+                  <p className="text-gray-500">No active tasks found. Time to add some!</p>
                 </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {view === 'today' && (
+          <div>
+            <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Today's Focus</h2>
+            {incompleteTodaySubtasks.length > 0 && (
+                 <div>
+                    <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">To Do</h3>
+                    {incompleteTodaySubtasks.map((item, index) => (
+                        <TodaySubtaskItem 
+                            key={item.subtask.id}
+                            item={{...item, parentTaskTitle: item.parentTask.title, parentTaskDescription: item.parentTask.description, parentTaskId: item.parentTask.id}}
+                            onToggleComplete={() => handleToggleTodaySubtaskComplete(item.subtask.id, item.parentTask.id)}
+                            onRemove={() => handleUnsetSubtaskDueDate(item.subtask.id, item.parentTask.id)}
+                            onDragStart={() => onTodayDragStart(item)}
+                            onDragOver={onDragOver}
+                            onDrop={() => onTodayDrop(item)}
+                            isDragging={draggedTodayItem?.subtask.id === item.subtask.id}
+                            onMoveSubtask={handleMoveTodaySubtask}
+                            subtaskIndex={index}
+                            totalSubtasks={incompleteTodaySubtasks.length}
+                            onUpdateParentTaskDescription={handleUpdateParentTaskDescription}
+                            onUpdateSubtaskText={handleUpdateSubtaskText}
+                        />
+                    ))}
+                 </div>
+            )}
+            
+            {completedTodaySubtasks.length > 0 && (
+                <div className={incompleteTodaySubtasks.length > 0 ? "mt-8" : ""}>
+                    <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">Completed Today</h3>
+                    {completedTodaySubtasks.map(item => (
+                         <TodaySubtaskItem 
+                            key={item.subtask.id}
+                            item={{...item, parentTaskTitle: item.parentTask.title, parentTaskDescription: item.parentTask.description, parentTaskId: item.parentTask.id}}
+                            onToggleComplete={() => handleToggleTodaySubtaskComplete(item.subtask.id, item.parentTask.id)}
+                            onRemove={() => handleUnsetSubtaskDueDate(item.subtask.id, item.parentTask.id)}
+                            onDragStart={(e) => e.preventDefault()}
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={(e) => e.preventDefault()}
+                            isDragging={false}
+                            onMoveSubtask={() => {}}
+                            subtaskIndex={-1}
+                            totalSubtasks={-1}
+                            onUpdateParentTaskDescription={handleUpdateParentTaskDescription}
+                            onUpdateSubtaskText={handleUpdateSubtaskText}
+                        />
+                    ))}
+                </div>
+            )}
+
+            {todaySubtasks.length === 0 && <p className="text-center py-10 text-gray-500">Nothing scheduled for today. Enjoy your day!</p>}
+          </div>
+        )}
+
+        {view === 'snoozed' && (
+          <div>
+            <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Snoozed Tasks</h2>
+            {snoozedTasks.map((task) => (
+              <TaskItem
+                key={task.id}
+                task={task}
+                onDelete={requestDeleteTask}
+                onUpdate={handleUpdateTask}
+                onOpenSubtaskModal={handleOpenSubtaskModal}
+                onDragStart={() => {}}
+                onDragOver={() => {}}
+                onDrop={() => {}}
+                isDragging={false}
+                onSetSubtaskDueDate={handleSetSubtaskDueDate}
+                onToggleTaskComplete={handleToggleTaskComplete}
+                allTags={allTags}
+                isCompactView={false}
+                onMoveTask={() => {}}
+                taskIndex={-1}
+                totalTasks={-1}
+                onSnoozeTask={handleSnoozeTask}
+                onUnsnoozeTask={handleUnsnoozeTask}
+                isDraggable={false}
+                onUpdateSubtaskText={handleUpdateSubtaskText}
+              />
+            ))}
+            {snoozedTasks.length === 0 && <p className="text-center py-10 text-gray-500">No snoozed tasks.</p>}
+          </div>
+        )}
+        
+        {view === 'archive' && (
+          <div>
+            <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Archived Tasks</h2>
+            {archivedTasks.map((task) => (
+              <TaskItem
+                key={task.id}
+                task={task}
+                onDelete={requestDeleteTask}
+                onUpdate={handleUpdateTask}
+                onOpenSubtaskModal={handleOpenSubtaskModal}
+                onDragStart={() => {}}
+                onDragOver={() => {}}
+                onDrop={() => {}}
+                isDragging={false}
+                onSetSubtaskDueDate={handleSetSubtaskDueDate}
+                onToggleTaskComplete={handleToggleTaskComplete}
+                allTags={allTags}
+                isCompactView={false}
+                onMoveTask={() => {}}
+                taskIndex={-1}
+                totalTasks={-1}
+                onSnoozeTask={handleSnoozeTask}
+                isDraggable={false}
+                onUpdateSubtaskText={handleUpdateSubtaskText}
+              />
+            ))}
+            {archivedTasks.length === 0 && <p className="text-center py-10 text-gray-500">No completed tasks yet.</p>}
+          </div>
+        )}
+
+        {view === 'stats' && <StatsView tasks={tasks} />}
+
+        {view === 'settings' && <SettingsView currentConfig={supabaseConfig} onSave={handleSaveSupabaseConfig} isOnlineMode={isOnlineMode} onToggleOnlineMode={setIsOnlineMode} onMigrateToLocal={handleMigrateToLocal} onMigrateToOnline={handleMigrateToOnline} />}
+
+        <div className="mt-8 border-t border-gray-200 dark:border-gray-700 pt-6">
+            <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">Local Data Management</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Export your current local tasks as a JSON file, or import from a previously exported file.</p>
+            <div className="flex flex-col sm:flex-row gap-2">
+                <button onClick={handleImportClick} className="flex-1 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 text-indigo-600 dark:text-indigo-400 font-bold py-2 px-4 rounded-lg shadow-md transition-colors flex items-center justify-center">
+                    <UploadIcon className="mr-2" /> Import from JSON
+                </button>
+                <button onClick={handleExportTasks} className="flex-1 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 text-indigo-600 dark:text-indigo-400 font-bold py-2 px-4 rounded-lg shadow-md transition-colors flex items-center justify-center">
+                    <DownloadIcon className="mr-2" /> Export to JSON
+                </button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  accept="application/json"
+                  className="hidden"
+                />
             </div>
         </div>
-      )}
-      
-      <ConfirmationModal
-        isOpen={confirmationState.isOpen}
-        onClose={closeConfirmationModal}
-        onConfirm={confirmationState.onConfirm}
-        title={confirmationState.title}
-        message={confirmationState.message}
-        confirmButtonText={confirmationState.confirmText}
-        confirmButtonClass={confirmationState.confirmClass}
-      />
+      </div>
     </div>
   );
 };
