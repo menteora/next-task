@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Task, Subtask } from './types';
 import TaskItem from './components/TaskItem';
@@ -1106,12 +1105,30 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
             </div>
           </div>
           <nav className="mt-4 flex flex-wrap gap-2">
-            <button onClick={() => setView('backlog')} className={`px-3 py-1.5 text-sm font-semibold rounded-md ${view === 'backlog' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'}`}><ListIcon className="h-5 w-5 inline mr-1"/>Backlog</button>
-            <button onClick={() => setView('today')} className={`px-3 py-1.5 text-sm font-semibold rounded-md ${view === 'today' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'}`}><CalendarIcon className="h-5 w-5 inline mr-1"/>Today</button>
-            <button onClick={() => setView('snoozed')} className={`px-3 py-1.5 text-sm font-semibold rounded-md ${view === 'snoozed' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'}`}><SnoozeIcon className="h-5 w-5 inline mr-1"/>Snoozed</button>
-            <button onClick={() => setView('archive')} className={`px-3 py-1.5 text-sm font-semibold rounded-md ${view === 'archive' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'}`}><ArchiveIcon className="h-5 w-5 inline mr-1"/>Archive</button>
-            <button onClick={() => setView('stats')} className={`px-3 py-1.5 text-sm font-semibold rounded-md ${view === 'stats' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'}`}><BarChartIcon className="h-5 w-5 inline mr-1"/>Stats</button>
-            <button onClick={() => setView('settings')} className={`px-3 py-1.5 text-sm font-semibold rounded-md ${view === 'settings' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'}`}><SettingsIcon className="h-5 w-5 inline mr-1"/>Settings</button>
+            <button onClick={() => setView('backlog')} title="Backlog" className={`flex items-center justify-center sm:justify-start p-2 sm:px-3 sm:py-1.5 text-sm font-semibold rounded-md ${view === 'backlog' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+              <ListIcon className="h-5 w-5 sm:mr-1"/>
+              <span className="hidden sm:inline">Backlog</span>
+            </button>
+            <button onClick={() => setView('today')} title="Today" className={`flex items-center justify-center sm:justify-start p-2 sm:px-3 sm:py-1.5 text-sm font-semibold rounded-md ${view === 'today' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+              <CalendarIcon className="h-5 w-5 sm:mr-1"/>
+              <span className="hidden sm:inline">Today</span>
+            </button>
+            <button onClick={() => setView('snoozed')} title="Snoozed" className={`flex items-center justify-center sm:justify-start p-2 sm:px-3 sm:py-1.5 text-sm font-semibold rounded-md ${view === 'snoozed' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+              <SnoozeIcon className="h-5 w-5 sm:mr-1"/>
+              <span className="hidden sm:inline">Snoozed</span>
+            </button>
+            <button onClick={() => setView('archive')} title="Archive" className={`flex items-center justify-center sm:justify-start p-2 sm:px-3 sm:py-1.5 text-sm font-semibold rounded-md ${view === 'archive' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+              <ArchiveIcon className="h-5 w-5 sm:mr-1"/>
+              <span className="hidden sm:inline">Archive</span>
+            </button>
+            <button onClick={() => setView('stats')} title="Stats" className={`flex items-center justify-center sm:justify-start p-2 sm:px-3 sm:py-1.5 text-sm font-semibold rounded-md ${view === 'stats' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+              <BarChartIcon className="h-5 w-5 sm:mr-1"/>
+              <span className="hidden sm:inline">Stats</span>
+            </button>
+            <button onClick={() => setView('settings')} title="Settings" className={`flex items-center justify-center sm:justify-start p-2 sm:px-3 sm:py-1.5 text-sm font-semibold rounded-md ${view === 'settings' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+              <SettingsIcon className="h-5 w-5 sm:mr-1"/>
+              <span className="hidden sm:inline">Settings</span>
+            </button>
           </nav>
         </header>
 
@@ -1247,7 +1264,7 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
 
         {view === 'today' && (
           <div>
-            <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Today's Focus</h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Today's Focus</h2>
             {incompleteTodaySubtasks.length > 0 && (
                  <div>
                     <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">To Do</h3>
@@ -1300,7 +1317,7 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
 
         {view === 'snoozed' && (
           <div>
-            <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Snoozed Tasks</h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Snoozed Tasks</h2>
             {snoozedTasks.map((task) => (
               <TaskItem
                 key={task.id}
@@ -1331,7 +1348,7 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
         
         {view === 'archive' && (
           <div>
-            <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Archived Tasks</h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Archived Tasks</h2>
             {archivedTasks.map((task) => (
               <TaskItem
                 key={task.id}
@@ -1363,25 +1380,27 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
 
         {view === 'settings' && <SettingsView currentConfig={supabaseConfig} onSave={handleSaveSupabaseConfig} isOnlineMode={isOnlineMode} onToggleOnlineMode={setIsOnlineMode} onMigrateToLocal={handleMigrateToLocal} onMigrateToOnline={handleMigrateToOnline} />}
 
-        <div className="mt-8 border-t border-gray-200 dark:border-gray-700 pt-6">
-            <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">Local Data Management</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Export your current local tasks as a JSON file, or import from a previously exported file.</p>
-            <div className="flex flex-col sm:flex-row gap-2">
-                <button onClick={handleImportClick} className="flex-1 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 text-indigo-600 dark:text-indigo-400 font-bold py-2 px-4 rounded-lg shadow-md transition-colors flex items-center justify-center">
-                    <UploadIcon className="mr-2" /> Import from JSON
-                </button>
-                <button onClick={handleExportTasks} className="flex-1 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 text-indigo-600 dark:text-indigo-400 font-bold py-2 px-4 rounded-lg shadow-md transition-colors flex items-center justify-center">
-                    <DownloadIcon className="mr-2" /> Export to JSON
-                </button>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                  accept="application/json"
-                  className="hidden"
-                />
-            </div>
-        </div>
+        {!isOnlineMode && (
+          <div className="mt-8 border-t border-gray-200 dark:border-gray-700 pt-6">
+              <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">Local Data Management</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Export your current local tasks as a JSON file, or import from a previously exported file.</p>
+              <div className="flex flex-col sm:flex-row gap-2">
+                  <button onClick={handleImportClick} className="flex-1 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 text-indigo-600 dark:text-indigo-400 font-bold py-2 px-4 rounded-lg shadow-md transition-colors flex items-center justify-center">
+                      <UploadIcon className="mr-2" /> Import from JSON
+                  </button>
+                  <button onClick={handleExportTasks} className="flex-1 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 text-indigo-600 dark:text-indigo-400 font-bold py-2 px-4 rounded-lg shadow-md transition-colors flex items-center justify-center">
+                      <DownloadIcon className="mr-2" /> Export to JSON
+                  </button>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    accept="application/json"
+                    className="hidden"
+                  />
+              </div>
+          </div>
+        )}
       </div>
     </div>
   );
