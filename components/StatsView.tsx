@@ -73,7 +73,7 @@ const StatsView: React.FC<StatsViewProps> = ({ tasks }) => {
   return (
     <div className="space-y-8 animate-fade-in-down">
       <div>
-        <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">At a Glance</h2>
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">At a Glance</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <StatsCard title="Completed Tasks" value={stats.completedTasks} colorClass="text-green-500 dark:text-green-400" />
           <StatsCard title="Pending Sub-tasks" value={stats.pendingSubtasks} />
@@ -82,7 +82,7 @@ const StatsView: React.FC<StatsViewProps> = ({ tasks }) => {
       </div>
 
       <div>
-        <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Weekly Activity</h2>
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Weekly Activity</h2>
         <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md">
             <div className="flex justify-between items-end h-48 space-x-1 sm:space-x-2">
                 {Object.entries(stats.weeklyCompletion).map(([date, count]) => {
@@ -106,7 +106,7 @@ const StatsView: React.FC<StatsViewProps> = ({ tasks }) => {
       </div>
       
       <div>
-        <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Top Tags</h2>
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Top Tags</h2>
         <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md">
             {stats.topTags.length > 0 ? (
                 <ul className="space-y-3">

@@ -116,12 +116,21 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
         if (field === 'unit') {
             newRecurrence = { ...currentRecurrence, unit: value as 'day'|'week'|'month'|'year' };
         } else {
-            newRecurrence = { ...currentRecurrence, value: parseInt(String(value), 10) || 1 };
+            const numValue = parseInt(String(value), 10);
+            // Use 0 as a temporary state for an empty or invalid input, which will be corrected on blur.
+            const finalValue = !isNaN(numValue) && numValue >= 1 ? numValue : 0;
+            newRecurrence = { ...currentRecurrence, value: finalValue };
         }
         
         return { ...st, recurrence: newRecurrence };
     });
     onUpdateTask({ ...task, subtasks: updatedSubtasks });
+  };
+
+  const handleRecurrenceBlur = (subtask: Subtask) => {
+    if (subtask.recurrence && subtask.recurrence.value < 1) {
+      handleRecurrenceChange(subtask.id, 'value', 1);
+    }
   };
 
   const handleStartEdit = (subtask: Subtask) => {
@@ -307,8 +316,9 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
                                     <input
                                       type="number"
                                       min="1"
-                                      value={subtask.recurrence?.value || 1}
+                                      value={subtask.recurrence?.value === 0 ? '' : subtask.recurrence?.value || 1}
                                       onChange={(e) => handleRecurrenceChange(subtask.id, 'value', e.target.value)}
+                                      onBlur={() => handleRecurrenceBlur(subtask)}
                                       className="w-16 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 border-none rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                     />
                                     <select

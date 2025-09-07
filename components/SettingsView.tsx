@@ -163,7 +163,7 @@ CREATE INDEX idx_online_subtasks_user_id ON public.online_subtasks(user_id);
   return (
     <div className="space-y-8 animate-fade-in-down">
        <div>
-        <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Supabase Connection</h2>
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Supabase Connection</h2>
         <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md space-y-4">
           <div>
             <label htmlFor="supabaseUrl" className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">
@@ -236,7 +236,7 @@ CREATE INDEX idx_online_subtasks_user_id ON public.online_subtasks(user_id);
       </div>
 
       <div>
-        <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Mode & Data</h2>
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Mode & Data</h2>
          <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md">
             <div className="pb-4 border-b border-gray-200 dark:border-gray-700">
                 <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">One-Time Data Migration</h3>
@@ -298,7 +298,7 @@ CREATE INDEX idx_online_subtasks_user_id ON public.online_subtasks(user_id);
        </div>
 
       <div>
-        <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Database Setup</h2>
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Database Setup</h2>
         <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md">
            <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">For Online Mode</h3>
            <p className="text-gray-600 dark:text-gray-300 mb-4">Run this in your Supabase SQL Editor to enable the live online mode.</p>
