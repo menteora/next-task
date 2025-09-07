@@ -1094,7 +1094,7 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
       <div className="container mx-auto p-2 sm:p-4 max-w-5xl">
         <header className="mb-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
-            <h1 className="text-3xl sm:text-4xl font-bold text-indigo-600 dark:text-indigo-400">Backlog</h1>
+            <h1 className="text-3xl sm:text-4xl font-bold text-indigo-600 dark:text-indigo-400">Next Task</h1>
             <div className="flex items-center space-x-2 mt-3 sm:mt-0">
               <span className={`text-xs font-semibold px-2 py-1 rounded-full ${isOnlineMode ? 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200'}`}>
                 {isOnlineMode ? 'Online' : 'Local'}
@@ -1105,9 +1105,9 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
             </div>
           </div>
           <nav className="mt-4 flex flex-wrap gap-2">
-            <button onClick={() => setView('backlog')} title="Backlog" className={`flex items-center justify-center sm:justify-start p-2 sm:px-3 sm:py-1.5 text-sm font-semibold rounded-md ${view === 'backlog' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+            <button onClick={() => setView('backlog')} title="Tasks" className={`flex items-center justify-center sm:justify-start p-2 sm:px-3 sm:py-1.5 text-sm font-semibold rounded-md ${view === 'backlog' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
               <ListIcon className="h-5 w-5 sm:mr-1"/>
-              <span className="hidden sm:inline">Backlog</span>
+              <span className="hidden sm:inline">Tasks</span>
             </button>
             <button onClick={() => setView('today')} title="Today" className={`flex items-center justify-center sm:justify-start p-2 sm:px-3 sm:py-1.5 text-sm font-semibold rounded-md ${view === 'today' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
               <CalendarIcon className="h-5 w-5 sm:mr-1"/>
