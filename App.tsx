@@ -629,7 +629,7 @@ const App: React.FC = () => {
         }
         return task;
     }));
-  }, [isOnlineMode, supabase]);
+  }, [tasks, isOnlineMode, supabase]);
 
   const handleUnsnoozeTask = useCallback(async (taskId: string) => {
     if (isOnlineMode && supabase) {
@@ -646,7 +646,7 @@ const App: React.FC = () => {
           }
           return task;
       }));
-  }, [isOnlineMode, supabase]);
+  }, [tasks, isOnlineMode, supabase]);
 
   const handleSetSubtaskDueDate = useCallback(async (subtaskId: string, taskId: string, date: string) => {
     const task = tasks.find(t => t.id === taskId);
