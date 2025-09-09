@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Task, Subtask } from '../types';
 import ConfirmationModal from './ConfirmationModal';
@@ -18,7 +17,13 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
   const [editingSubtaskText, setEditingSubtaskText] = useState('');
   const [confirmingDeleteSubtaskId, setConfirmingDeleteSubtaskId] = useState<string | null>(null);
 
-  const getTodayDateString = () => new Date().toISOString().split('T')[0];
+  const getTodayDateString = () => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
 
   const handleAddSubtask = () => {
     if (newSubtaskText.trim()) {
