@@ -312,10 +312,26 @@ const App: React.FC = () => {
   const todayString = useMemo(() => getTodayDateString(), []);
 
   const sortedAndFilteredTasks = useMemo(() => {
-    let activeTasks = tasks.filter(task => 
-      !task.completed &&
-      (!task.snoozeUntil || task.snoozeUntil <= todayString)
-    );
+    console.groupCollapsed('[sortedAndFilteredTasks] Recalculating active tasks');
+    console.log(`Using todayString: "${todayString}" for comparison.`);
+
+    let activeTasks = tasks.filter(task => {
+      const isCompleted = task.completed;
+      const isSnoozed = task.snoozeUntil && task.snoozeUntil > todayString;
+      const shouldBeActive = !isCompleted && !isSnoozed;
+
+      console.log(
+        `Task: "${task.title}"`,
+        `| completed: ${isCompleted}`,
+        `| snoozeUntil: "${task.snoozeUntil}"`,
+        `| isSnoozed (snoozeUntil > today): ${isSnoozed}`,
+        `| => Should be active: ${shouldBeActive}`
+      );
+
+      return shouldBeActive;
+    });
+
+    console.log(`Found ${activeTasks.length} active tasks before filtering/sorting.`);
 
     if (selectedTags.length > 0) {
         activeTasks = activeTasks.filter(task => {
@@ -339,13 +355,30 @@ const App: React.FC = () => {
             return daysB - daysA;
         });
     }
-
+    
+    console.groupEnd();
     return activeTasks;
   }, [tasks, selectedTags, sortOption, todayString]);
 
   const snoozedTasks = useMemo(() => {
-    return tasks
-      .filter(task => task.snoozeUntil && task.snoozeUntil > todayString && !task.completed)
+    console.groupCollapsed('[snoozedTasks] Recalculating snoozed tasks');
+    console.log(`Using todayString: "${todayString}" for comparison.`);
+
+    const filtered = tasks.filter(task => {
+        const isSnoozed = !!(task.snoozeUntil && task.snoozeUntil > todayString && !task.completed);
+        console.log(
+          `Task: "${task.title}"`,
+          `| snoozeUntil: "${task.snoozeUntil}"`,
+          `| completed: ${task.completed}`,
+          `| => Is in snoozed list: ${isSnoozed}`
+        );
+        return isSnoozed;
+    });
+
+    console.log(`Found ${filtered.length} snoozed tasks.`);
+    console.groupEnd();
+
+    return filtered
       .sort((a, b) => a.snoozeUntil!.localeCompare(b.snoozeUntil!));
   }, [tasks, todayString]);
 
@@ -563,8 +596,9 @@ const App: React.FC = () => {
   }, [tasks, isOnlineMode, supabase]);
 
   const handleSnoozeTask = useCallback(async (taskId: string, duration: 'day' | 'week' | 'month') => {
+    console.log(`[handleSnoozeTask] Triggered for task ID: ${taskId} with duration: ${duration}`);
+    
     const newDate = new Date();
-    newDate.setHours(0, 0, 0, 0); 
     if (duration === 'day') newDate.setDate(newDate.getDate() + 1);
     if (duration === 'week') newDate.setDate(newDate.getDate() + 7);
     if (duration === 'month') newDate.setMonth(newDate.getMonth() + 1);
@@ -574,17 +608,27 @@ const App: React.FC = () => {
     const dd = String(newDate.getDate()).padStart(2, '0');
     const snoozeUntilDate = `${yyyy}-${mm}-${dd}`;
 
+    console.log(`[handleSnoozeTask] Calculated snoozeUntil date: ${snoozeUntilDate}`);
+    console.log(`[handleSnoozeTask] Is online mode: ${isOnlineMode}`);
+
     if (isOnlineMode && supabase) {
+        console.log(`[handleSnoozeTask] Updating task in Supabase...`);
         const { error } = await supabase.from('online_tasks').update({ snooze_until: snoozeUntilDate }).match({ id: taskId });
         if (error) {
+            console.error(`[handleSnoozeTask] Supabase error:`, error);
             setStatusMessage({type: 'error', text: `Failed to snooze task: ${error.message}`});
             return;
         }
+        console.log(`[handleSnoozeTask] Supabase update successful.`);
     }
 
-    setTasks(prevTasks => prevTasks.map(task => 
-        task.id === taskId ? { ...task, snoozeUntil: snoozeUntilDate } : task
-    ));
+    setTasks(prevTasks => prevTasks.map(task => {
+        if (task.id === taskId) {
+            console.log(`[handleSnoozeTask] Updating local state for task "${task.title}" to snoozeUntil: ${snoozeUntilDate}`);
+            return { ...task, snoozeUntil: snoozeUntilDate };
+        }
+        return task;
+    }));
   }, [isOnlineMode, supabase]);
 
   const handleUnsnoozeTask = useCallback(async (taskId: string) => {
