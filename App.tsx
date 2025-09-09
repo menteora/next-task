@@ -575,39 +575,37 @@ const App: React.FC = () => {
     const dd = String(newDate.getDate()).padStart(2, '0');
     const snoozeUntilDate = `${yyyy}-${mm}-${dd}`;
 
+    // Perform optimistic update for both modes
+    setTasks(prevTasks => prevTasks.map(task => 
+        task.id === taskId ? { ...task, snoozeUntil: snoozeUntilDate } : task
+    ));
+
     if (isOnlineMode && supabase) {
         const { error } = await supabase.from('online_tasks').update({ snooze_until: snoozeUntilDate }).match({ id: taskId });
         if (error) {
-            setStatusMessage({type: 'error', text: `Failed to snooze task: ${error.message}`});
-            return;
+            setStatusMessage({type: 'error', text: `Failed to snooze task: ${error.message}. Reverting.`});
+            // On failure, refetch from server to get true state
+            await fetchOnlineTasks(supabase);
         }
-        await fetchOnlineTasks(supabase);
-    } else {
-        setTasks(prevTasks => prevTasks.map(task => {
-            if (task.id === taskId) {
-                return { ...task, snoozeUntil: snoozeUntilDate };
-            }
-            return task;
-        }));
     }
   }, [tasks, isOnlineMode, supabase, fetchOnlineTasks]);
 
   const handleUnsnoozeTask = useCallback(async (taskId: string) => {
+    // Optimistic update
+    setTasks(prevTasks => prevTasks.map(task => {
+        if (task.id === taskId) {
+            const { snoozeUntil, ...rest } = task;
+            return rest;
+        }
+        return task;
+    }));
+
     if (isOnlineMode && supabase) {
         const { error } = await supabase.from('online_tasks').update({ snooze_until: null }).match({ id: taskId });
         if (error) {
-            setStatusMessage({type: 'error', text: `Failed to unsnooze task: ${error.message}`});
-            return;
+            setStatusMessage({type: 'error', text: `Failed to unsnooze task: ${error.message}. Reverting.`});
+            await fetchOnlineTasks(supabase);
         }
-        await fetchOnlineTasks(supabase);
-    } else {
-        setTasks(prevTasks => prevTasks.map(task => {
-            if (task.id === taskId) {
-                const { snoozeUntil, ...rest } = task;
-                return rest;
-            }
-            return task;
-        }));
     }
   }, [tasks, isOnlineMode, supabase, fetchOnlineTasks]);
 
