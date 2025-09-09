@@ -152,10 +152,9 @@ const App: React.FC = () => {
     backlogTasks.forEach(task => extractTags(task.description).forEach(tag => tags.add(tag)));
     return Array.from(tags).sort();
   }, [backlogTasks]);
-  
-  const todayString = useMemo(() => getTodayDateString(), []);
 
   const todaySubtasks = useMemo(() => {
+    const todayString = getTodayDateString();
     const result: TodayItem[] = [];
     allTasks.forEach(task => {
         task.subtasks.forEach(subtask => {
@@ -168,7 +167,7 @@ const App: React.FC = () => {
         });
     });
     return result;
-  }, [allTasks, todayString]);
+  }, [allTasks]);
 
   useEffect(() => {
     setTodayOrder(currentOrder => {
@@ -219,17 +218,19 @@ const App: React.FC = () => {
   const requestDeleteTask = useCallback((taskId: string) => {
     const task = allTasks.find(t => t.id === taskId);
     if (!task) return;
+    const todayString = getTodayDateString();
     const taskView = task.completed ? 'archive' : (task.snoozeUntil && task.snoozeUntil > todayString) ? 'snoozed' : 'backlog';
     setConfirmationState({
         isOpen: true, title: 'Confirm Deletion', message: `Delete task "${task.title}"?`,
         confirmText: 'Delete', confirmClass: 'bg-red-600 hover:bg-red-700',
         onConfirm: () => { handleDeleteTask(taskId, taskView); closeConfirmationModal(); },
     });
-  }, [allTasks, handleDeleteTask, todayString]);
+  }, [allTasks, handleDeleteTask]);
 
   const handleUpdateTask = useCallback(async (updatedTask: Task) => {
     let sourceView: View | null = null;
     let targetView: View | null = null;
+    const todayString = getTodayDateString();
 
     const findTask = allTasks.find(t => t.id === updatedTask.id);
     if(findTask) {
@@ -258,7 +259,7 @@ const App: React.FC = () => {
         api.getSnoozedTasks().then(setSnoozedTasks);
         api.getArchivedTasks().then(setArchivedTasks);
     }
-  }, [api, modalTask, todayString, allTasks]);
+  }, [api, modalTask, allTasks]);
   
   const handleToggleTaskComplete = useCallback((taskId: string) => {
     const task = allTasks.find(t => t.id === taskId);
@@ -268,14 +269,17 @@ const App: React.FC = () => {
   }, [allTasks, handleUpdateTask]);
 
   const handleSnoozeTask = useCallback((taskId: string, duration: 'day' | 'week' | 'month') => {
-    const task = backlogTasks.find(t => t.id === taskId);
-    if (!task) return;
+    const task = allTasks.find(t => t.id === taskId && !t.completed);
+    if (!task) {
+        console.warn(`[handleSnoozeTask] Could not find incomplete task with ID: ${taskId}`);
+        return;
+    }
     const newDate = new Date();
     if (duration === 'day') newDate.setDate(newDate.getDate() + 1);
     if (duration === 'week') newDate.setDate(newDate.getDate() + 7);
     if (duration === 'month') newDate.setMonth(newDate.getMonth() + 1);
     handleUpdateTask({ ...task, snoozeUntil: newDate.toISOString().split('T')[0] });
-  }, [backlogTasks, handleUpdateTask]);
+  }, [allTasks, handleUpdateTask]);
 
   const handleUnsnoozeTask = useCallback((taskId: string) => {
     const task = snoozedTasks.find(t => t.id === taskId);
