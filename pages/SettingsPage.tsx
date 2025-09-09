@@ -1,5 +1,6 @@
 import React from 'react';
 import SettingsView from '../components/SettingsView';
+import { Task } from '../types';
 
 interface SupabaseConfig {
   url: string;

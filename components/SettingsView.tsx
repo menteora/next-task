@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { Task } from '../types';
 
 interface SupabaseConfig {
   url: string;

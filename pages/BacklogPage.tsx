@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { Task } from '../types';
-import { SortOption } from '../App';
+// FIX: The SortOption type is exported from useUI.ts, not App.tsx.
+import { SortOption } from '../hooks/useUI';
 import TaskItem from '../components/TaskItem';
 import { PlusIcon, ArrowsPointingInIcon, ArrowsPointingOutIcon } from '../components/icons';
 import MarkdownInput from '../components/MarkdownInput';
