@@ -10,11 +10,11 @@ import { createSupabaseClient } from './supabaseClient';
 import { PlusIcon, SunIcon, MoonIcon, ListIcon, CalendarIcon, BarChartIcon, ArrowsPointingInIcon, ArrowsPointingOutIcon, DownloadIcon, UploadIcon, SettingsIcon, CloudUploadIcon, CloudDownloadIcon, SpinnerIcon, LogOutIcon, ArchiveIcon, SnoozeIcon, ChevronDownIcon } from './components/icons';
 import { Session, SupabaseClient } from '@supabase/supabase-js';
 import MarkdownInput from './components/MarkdownInput';
+import { createTaskService, TaskApi } from './services/taskService';
 
 type TodayItem = { subtask: Subtask, parentTask: Task };
 type Theme = 'light' | 'dark';
 type View = 'backlog' | 'today' | 'snoozed' | 'archive' | 'stats' | 'settings';
-type SupabaseAction = 'import' | 'export';
 type SortOption = 'manual' | 'days_passed';
 
 
@@ -94,12 +94,11 @@ const App: React.FC = () => {
     return null;
   }, [supabaseConfig]);
   const [supabaseSession, setSupabaseSession] = useState<Session | null>(null);
-  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
-  const [password, setPassword] = useState('');
-  const [supabaseAction, setSupabaseAction] = useState<SupabaseAction | null>(null);
-  const [isSupabaseLoading, setIsSupabaseLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<StatusMessage | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  
+  const api = useMemo<TaskApi>(() => createTaskService(isOnlineMode, supabase, supabaseSession), [isOnlineMode, supabase, supabaseSession]);
+
 
   // Confirmation Modal State
   const [confirmationState, setConfirmationState] = useState<ConfirmationState>({
@@ -111,12 +110,6 @@ const App: React.FC = () => {
     onConfirm: () => {},
   });
 
-
-  useEffect(() => {
-    if (!isOnlineMode) {
-      localStorage.setItem('backlogTasks', JSON.stringify(tasks));
-    }
-  }, [tasks, isOnlineMode]);
 
   useEffect(() => {
     localStorage.setItem('todayOrder', JSON.stringify(todayOrder));
@@ -158,99 +151,27 @@ const App: React.FC = () => {
   }, [supabase]);
   
   // Data Loading Logic
-  const fetchOnlineTasks = useCallback(async (db: SupabaseClient) => {
-    setIsLoading(true);
-    const { data: tasksData, error: tasksError } = await db
-      .from('online_tasks')
-      .select('*')
-      .order('order', { ascending: true });
-
-    if (tasksError) {
-      let errorMessage = `Error fetching tasks: ${tasksError.message}`;
-      if (tasksError.message.includes("does not exist") || tasksError.message.includes("Could not find the table")) {
-          errorMessage = "Error: 'online_tasks' table not found. Please run the setup SQL from the Settings page in your Supabase project.";
-      }
-      setStatusMessage({ type: 'error', text: errorMessage });
-      setIsLoading(false);
-      return;
-    }
-
-    const { data: subtasksData, error: subtasksError } = await db
-      .from('online_subtasks')
-      .select('*')
-      .order('order', { ascending: true });
-      
-    if (subtasksError) {
-      let errorMessage = `Error fetching subtasks: ${subtasksError.message}`;
-      if (subtasksError.message.includes("does not exist") || subtasksError.message.includes("Could not find the table")) {
-          errorMessage = "Error: 'online_subtasks' table not found. Please run the setup SQL from the Settings page in your Supabase project.";
-      }
-      setStatusMessage({ type: 'error', text: errorMessage });
-      setIsLoading(false);
-      return;
-    }
-    
-    const subtasksByTaskId = new Map<string, Subtask[]>();
-    subtasksData.forEach(st => {
-      const subtask: Subtask = {
-        id: st.id,
-        text: st.text,
-        completed: st.completed,
-        dueDate: st.due_date,
-        completionDate: st.completion_date,
-        recurrence: st.recurrence,
-        order: st.order,
-      };
-      const existing = subtasksByTaskId.get(st.task_id) || [];
-      existing.push(subtask);
-      subtasksByTaskId.set(st.task_id, existing);
-    });
-
-    const fetchedTasks: Task[] = tasksData.map(t => ({
-      id: t.id,
-      title: t.title,
-      description: t.description,
-      completed: t.completed,
-      completionDate: t.completion_date,
-      snoozeUntil: t.snooze_until,
-      order: t.order,
-      subtasks: subtasksByTaskId.get(t.id) || [],
-    }));
-    
-    setTasks(fetchedTasks);
-    setIsLoading(false);
-  }, []);
-
-  const loadLocalTasks = () => {
-    const savedTasks = localStorage.getItem('backlogTasks');
-    if (savedTasks) {
-      try {
-        const parsedTasks = JSON.parse(savedTasks);
-        setTasks(parsedTasks.map((task: any, index: number) => ({
-          ...task,
-          completed: task.completed ?? false,
-          order: task.order ?? index,
-          subtasks: (task.subtasks || []).map((st: any, stIndex: number) => ({
-              ...st,
-              order: st.order ?? stIndex
-          }))
-        })));
-      } catch (e) {
-        console.error("Failed to parse tasks from localStorage", e);
-        setTasks([]);
-      }
-    } else {
-        setTasks([]);
-    }
-  };
-
   useEffect(() => {
-    if (isOnlineMode && supabase && supabaseSession) {
-        fetchOnlineTasks(supabase);
-    } else if (!isOnlineMode) {
-        loadLocalTasks();
+    // Only fetch if we are in local mode, or if we are in online mode AND have a session
+    const shouldFetch = !isOnlineMode || (isOnlineMode && supabase && supabaseSession);
+
+    if (shouldFetch) {
+        setIsLoading(true);
+        api.getTasks()
+            .then(fetchedTasks => {
+                setTasks(fetchedTasks);
+            })
+            .catch((error: Error) => {
+                setStatusMessage({ type: 'error', text: error.message });
+            })
+            .finally(() => {
+                setIsLoading(false);
+            });
+    } else if (isOnlineMode && !supabaseSession) {
+      // Clear tasks if online but logged out
+      setTasks([]);
     }
-  }, [isOnlineMode, supabase, supabaseSession, fetchOnlineTasks]);
+  }, [isOnlineMode, supabase, supabaseSession, api]);
 
 
   const handleSaveSupabaseConfig = (config: SupabaseConfig) => {
@@ -339,6 +260,8 @@ const App: React.FC = () => {
             
             return daysB - daysA;
         });
+    } else {
+      activeTasks.sort((a, b) => a.order - b.order);
     }
     
     return activeTasks;
@@ -427,45 +350,22 @@ const App: React.FC = () => {
 
   const handleAddTask = async () => {
     if (!newTaskTitle.trim()) return;
+    const maxOrder = tasks.reduce((max, task) => Math.max(task.order, max), -1);
 
-    if (isOnlineMode && supabase && supabaseSession) {
-      const maxOrder = tasks.reduce((max, task) => Math.max(task.order, max), -1);
-      const { data, error } = await supabase.from('online_tasks').insert({
-        title: newTaskTitle.trim(),
-        description: newTaskDescription.trim(),
-        user_id: supabaseSession.user.id,
-        order: maxOrder + 1
-      }).select().single();
-
-      if (error) {
-        setStatusMessage({type: 'error', text: `Failed to add task: ${error.message}`});
-      } else {
-        const newTask: Task = {
-          id: data.id,
-          title: data.title,
-          description: data.description,
-          completed: data.completed,
-          order: data.order,
-          subtasks: [],
-        };
+    try {
+        const newTask = await api.addTask(
+            newTaskTitle.trim(),
+            newTaskDescription.trim(),
+            supabaseSession?.user.id || '', // userId is ignored by localApi
+            maxOrder + 1
+        );
         setTasks(prev => [newTask, ...prev]);
-      }
-
-    } else {
-      const maxOrder = tasks.reduce((max, task) => Math.max(task.order, max), -1);
-      const newTask: Task = {
-        id: crypto.randomUUID(),
-        title: newTaskTitle.trim(),
-        description: newTaskDescription.trim(),
-        subtasks: [],
-        completed: false,
-        order: maxOrder + 1,
-      };
-      setTasks(prevTasks => [newTask, ...prevTasks.filter(t => !t.completed), ...prevTasks.filter(t => t.completed)]);
+        setNewTaskTitle('');
+        setNewTaskDescription('');
+        setIsFormVisible(false);
+    } catch (error: any) {
+        setStatusMessage({type: 'error', text: error.message});
     }
-    setNewTaskTitle('');
-    setNewTaskDescription('');
-    setIsFormVisible(false);
   };
 
   const closeConfirmationModal = () => {
@@ -473,15 +373,15 @@ const App: React.FC = () => {
   };
 
   const handleDeleteTask = useCallback(async (taskId: string) => {
-    if (isOnlineMode && supabase) {
-      const { error } = await supabase.from('online_tasks').delete().match({ id: taskId });
-      if (error) {
-        setStatusMessage({type: 'error', text: `Failed to delete task: ${error.message}`});
-        return;
-      }
-    }
+    const originalTasks = tasks;
     setTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
-  }, [isOnlineMode, supabase]);
+    try {
+        await api.deleteTask(taskId);
+    } catch (error: any) {
+        setStatusMessage({type: 'error', text: `Failed to delete task: ${error.message}`});
+        setTasks(originalTasks); // Revert
+    }
+  }, [tasks, api]);
 
   const requestDeleteTask = useCallback((taskId: string) => {
     const task = tasks.find(t => t.id === taskId);
@@ -499,45 +399,26 @@ const App: React.FC = () => {
   }, [tasks, handleDeleteTask]);
 
   const handleUpdateTask = useCallback(async (updatedTask: Task) => {
-    if (isOnlineMode && supabase && supabaseSession) {
-        const { error } = await supabase.from('online_tasks').update({
-            title: updatedTask.title,
-            description: updatedTask.description,
-            snooze_until: updatedTask.snoozeUntil,
-            completed: updatedTask.completed,
-            completion_date: updatedTask.completionDate,
-        }).match({ id: updatedTask.id });
-        if (error) {
-            setStatusMessage({type: 'error', text: `Failed to update task: ${error.message}`});
-            return;
-        }
-
-        const onlineSubtasks = updatedTask.subtasks.map(st => ({
-            id: st.id,
-            task_id: updatedTask.id,
-            user_id: supabaseSession.user.id,
-            text: st.text,
-            completed: st.completed,
-            due_date: st.dueDate,
-            completion_date: st.completionDate,
-            recurrence: st.recurrence,
-            order: st.order,
-        }));
-
-        await supabase.from('online_subtasks').delete().match({ task_id: updatedTask.id });
-        const { error: subtaskError } = await supabase.from('online_subtasks').upsert(onlineSubtasks);
-
-         if (subtaskError) {
-            setStatusMessage({type: 'error', text: `Failed to update subtasks: ${subtaskError.message}`});
-            return;
-        }
-    }
-
+    const originalTasks = tasks;
     setTasks(prevTasks => prevTasks.map(task => task.id === updatedTask.id ? updatedTask : task));
     if (modalTask && modalTask.id === updatedTask.id) {
         setModalTask(updatedTask);
     }
-  }, [isOnlineMode, supabase, modalTask, supabaseSession]);
+    
+    try {
+        await api.updateTask(updatedTask);
+         if (!isOnlineMode) {
+          // In local mode, also update localStorage immediately
+          localStorage.setItem('backlogTasks', JSON.stringify(tasks.map(task => task.id === updatedTask.id ? updatedTask : task)));
+        }
+    } catch (error: any) {
+        setStatusMessage({type: 'error', text: `Failed to update task: ${error.message}.`});
+        setTasks(originalTasks); // Revert on failure
+        if (modalTask && modalTask.id === updatedTask.id) {
+            setModalTask(originalTasks.find(t => t.id === updatedTask.id) || null);
+        }
+    }
+  }, [tasks, api, modalTask, isOnlineMode]);
   
   const handleToggleTaskComplete = useCallback(async (taskId: string) => {
     const taskToToggle = tasks.find(task => task.id === taskId);
@@ -545,26 +426,15 @@ const App: React.FC = () => {
 
     const isCompleted = !taskToToggle.completed;
     const completionDate = isCompleted ? new Date().toISOString() : undefined;
-
-    if (isOnlineMode && supabase) {
-        const { error } = await supabase.from('online_tasks').update({
-            completed: isCompleted,
-            completion_date: completionDate,
-        }).match({ id: taskId });
-        if (error) {
-            setStatusMessage({type: 'error', text: `Failed to toggle task: ${error.message}`});
-            return;
-        }
-    }
+    const updatedTask = { ...taskToToggle, completed: isCompleted, completionDate };
     
-    setTasks(prevTasks =>
-      prevTasks.map(task => 
-        task.id === taskId ? { ...task, completed: isCompleted, completionDate } : task
-      )
-    );
-  }, [tasks, isOnlineMode, supabase]);
+    await handleUpdateTask(updatedTask);
+  }, [tasks, handleUpdateTask]);
 
   const handleSnoozeTask = useCallback(async (taskId: string, duration: 'day' | 'week' | 'month') => {
+    const taskToUpdate = tasks.find(t => t.id === taskId);
+    if (!taskToUpdate) return;
+
     const newDate = new Date();
     if (duration === 'day') newDate.setDate(newDate.getDate() + 1);
     if (duration === 'week') newDate.setDate(newDate.getDate() + 7);
@@ -574,61 +444,23 @@ const App: React.FC = () => {
     const mm = String(newDate.getMonth() + 1).padStart(2, '0');
     const dd = String(newDate.getDate()).padStart(2, '0');
     const snoozeUntilDate = `${yyyy}-${mm}-${dd}`;
-
-    // Perform optimistic update for both modes
-    setTasks(prevTasks => prevTasks.map(task => 
-        task.id === taskId ? { ...task, snoozeUntil: snoozeUntilDate } : task
-    ));
-
-    if (isOnlineMode && supabase) {
-        const { error } = await supabase.from('online_tasks').update({ snooze_until: snoozeUntilDate }).match({ id: taskId });
-        if (error) {
-            setStatusMessage({type: 'error', text: `Failed to snooze task: ${error.message}. Reverting.`});
-            // On failure, refetch from server to get true state
-            await fetchOnlineTasks(supabase);
-        }
-    }
-  }, [tasks, isOnlineMode, supabase, fetchOnlineTasks]);
+    
+    await handleUpdateTask({ ...taskToUpdate, snoozeUntil: snoozeUntilDate });
+  }, [tasks, handleUpdateTask]);
 
   const handleUnsnoozeTask = useCallback(async (taskId: string) => {
-    // Optimistic update
-    setTasks(prevTasks => prevTasks.map(task => {
-        if (task.id === taskId) {
-            const { snoozeUntil, ...rest } = task;
-            return rest;
-        }
-        return task;
-    }));
-
-    if (isOnlineMode && supabase) {
-        const { error } = await supabase.from('online_tasks').update({ snooze_until: null }).match({ id: taskId });
-        if (error) {
-            setStatusMessage({type: 'error', text: `Failed to unsnooze task: ${error.message}. Reverting.`});
-            await fetchOnlineTasks(supabase);
-        }
-    }
-  }, [tasks, isOnlineMode, supabase, fetchOnlineTasks]);
+    const taskToUpdate = tasks.find(t => t.id === taskId);
+    if (!taskToUpdate) return;
+    const { snoozeUntil, ...rest } = taskToUpdate;
+    await handleUpdateTask(rest);
+  }, [tasks, handleUpdateTask]);
 
   const handleSetSubtaskDueDate = useCallback(async (subtaskId: string, taskId: string, date: string) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
-
-    if (isOnlineMode && supabase) {
-        await supabase.from('online_subtasks').update({ due_date: date }).match({ id: subtaskId });
-    }
-
-    const updatedTask = {
-        ...task,
-        subtasks: task.subtasks.map(st =>
-            st.id === subtaskId ? { ...st, dueDate: date } : st
-        )
-    };
-
-    setTasks(prevTasks => prevTasks.map(t => t.id === taskId ? updatedTask : t));
-    if (modalTask?.id === taskId) {
-        setModalTask(updatedTask);
-    }
-  }, [tasks, isOnlineMode, supabase, modalTask]);
+    const updatedTask = { ...task, subtasks: task.subtasks.map(st => st.id === subtaskId ? { ...st, dueDate: date } : st ) };
+    await handleUpdateTask(updatedTask);
+  }, [tasks, handleUpdateTask]);
 
 
   const handleToggleTodaySubtaskComplete = useCallback(async (subtaskId: string, taskId: string) => {
@@ -639,12 +471,11 @@ const App: React.FC = () => {
     const isCompleting = !subtask.completed;
     const completionDate = isCompleting ? new Date().toISOString() : undefined;
     let newSubtask: Subtask | null = null;
+    let updatedSubtasks = task.subtasks.map(st => st.id === subtaskId ? { ...st, completed: isCompleting, completionDate } : st);
 
     if (isCompleting && subtask.recurrence) {
         const { unit, value } = subtask.recurrence;
-        const baseDate = new Date();
-        let nextDueDate = new Date(baseDate);
-
+        let nextDueDate = new Date();
         if (unit === 'day') nextDueDate.setDate(nextDueDate.getDate() + value);
         else if (unit === 'week') nextDueDate.setDate(nextDueDate.getDate() + (value * 7));
         else if (unit === 'month') nextDueDate.setMonth(nextDueDate.getMonth() + value);
@@ -653,139 +484,68 @@ const App: React.FC = () => {
         const maxOrder = task.subtasks.reduce((max, st) => Math.max(st.order, max), -1);
         
         newSubtask = {
-            ...subtask,
-            id: crypto.randomUUID(),
-            completed: false,
+            ...subtask, id: crypto.randomUUID(), completed: false,
             dueDate: nextDueDate.toISOString().split('T')[0],
-            completionDate: undefined,
-            order: maxOrder + 1,
+            completionDate: undefined, order: maxOrder + 1,
         };
+        updatedSubtasks.push(newSubtask);
     }
+    
+    const incomplete = updatedSubtasks.filter(st => !st.completed).sort((a,b) => a.order - b.order);
+    const completed = updatedSubtasks.filter(st => st.completed).sort((a,b) => {
+      if(!a.completionDate) return 1; if(!b.completionDate) return -1;
+      return new Date(b.completionDate).getTime() - new Date(a.completionDate).getTime();
+    });
 
-    if (isOnlineMode && supabase && supabaseSession) {
-      await supabase.from('online_subtasks').update({
-        completed: isCompleting,
-        completion_date: completionDate,
-      }).match({id: subtaskId});
-      
-      if (newSubtask) {
-          await supabase.from('online_subtasks').insert({
-              id: newSubtask.id,
-              task_id: taskId,
-              user_id: supabaseSession.user.id,
-              text: newSubtask.text,
-              completed: false,
-              due_date: newSubtask.dueDate,
-              recurrence: newSubtask.recurrence,
-              order: newSubtask.order,
-          });
-      }
-    }
-
-    setTasks(prevTasks => 
-        prevTasks.map(t => {
-            if (t.id !== taskId) return t;
-            
-            let updatedSubtasks = t.subtasks.map(st => 
-                st.id === subtaskId ? { ...st, completed: isCompleting, completionDate } : st
-            );
-            
-            if (newSubtask) {
-                updatedSubtasks.push(newSubtask);
-            }
-            
-            const incomplete = updatedSubtasks.filter(st => !st.completed).sort((a,b) => a.order - b.order);
-            const completed = updatedSubtasks.filter(st => st.completed).sort((a,b) => {
-              if(!a.completionDate) return 1;
-              if(!b.completionDate) return -1;
-              return new Date(b.completionDate).getTime() - new Date(a.completionDate).getTime();
-            });
-
-            const finalSubtasks = [...incomplete, ...completed].map((st, index) => ({...st, order: index}));
-
-            return {
-                ...t,
-                subtasks: finalSubtasks,
-            };
-        })
-    );
-}, [tasks, isOnlineMode, supabase, supabaseSession]);
+    const finalSubtasks = [...incomplete, ...completed].map((st, index) => ({...st, order: index}));
+    await handleUpdateTask({ ...task, subtasks: finalSubtasks });
+}, [tasks, handleUpdateTask]);
 
   const handleUnsetSubtaskDueDate = useCallback(async (subtaskId: string, taskId: string) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
-    
-    if(isOnlineMode && supabase) {
-        await supabase.from('online_subtasks').update({ due_date: null }).match({id: subtaskId});
-    }
-
-    const updatedSubtasks = task.subtasks.map(st =>
-        st.id === subtaskId ? { ...st, dueDate: undefined } : st
-    );
-    const updatedTask = { ...task, subtasks: updatedSubtasks };
-    
-    setTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
-
-  }, [tasks, isOnlineMode, supabase]);
+    const updatedSubtasks = task.subtasks.map(st => st.id === subtaskId ? { ...st, dueDate: undefined } : st);
+    await handleUpdateTask({ ...task, subtasks: updatedSubtasks });
+  }, [tasks, handleUpdateTask]);
 
   const handleUpdateParentTaskDescription = useCallback(async (taskId: string, newDescription: string) => {
     const taskToUpdate = tasks.find(t => t.id === taskId);
     if (!taskToUpdate) return;
-    
-    const updatedTask = { ...taskToUpdate, description: newDescription };
-    await handleUpdateTask(updatedTask);
+    await handleUpdateTask({ ...taskToUpdate, description: newDescription });
   }, [tasks, handleUpdateTask]);
   
   const handleUpdateSubtaskText = useCallback(async (taskId: string, subtaskId: string, newText: string) => {
     const taskToUpdate = tasks.find(t => t.id === taskId);
     if (!taskToUpdate) return;
-
-    if (isOnlineMode && supabase) {
-      const { error } = await supabase.from('online_subtasks')
-        .update({ text: newText })
-        .match({ id: subtaskId });
-      if (error) {
-        setStatusMessage({ type: 'error', text: `Failed to update subtask: ${error.message}` });
-        return;
-      }
-    }
-
-    const updatedSubtasks = taskToUpdate.subtasks.map(st =>
-      st.id === subtaskId ? { ...st, text: newText } : st
-    );
-
-    setTasks(prevTasks => prevTasks.map(task =>
-      task.id === taskId ? { ...task, subtasks: updatedSubtasks } : task
-    ));
-  }, [tasks, isOnlineMode, supabase]);
+    const updatedSubtasks = taskToUpdate.subtasks.map(st => st.id === subtaskId ? { ...st, text: newText } : st);
+    await handleUpdateTask({ ...taskToUpdate, subtasks: updatedSubtasks });
+  }, [tasks, handleUpdateTask]);
   
   const handleMoveTask = useCallback(async (taskId: string, direction: 'up' | 'down' | 'top' | 'bottom') => {
-    
-    const activeTasks = tasks.filter(t => !t.completed).sort((a,b) => a.order - b.order);
+    let activeTasks = tasks.filter(t => !t.completed).sort((a,b) => a.order - b.order);
     const completedTasks = tasks.filter(t => t.completed);
-
     const fromIndex = activeTasks.findIndex(t => t.id === taskId);
     if(fromIndex === -1) return;
 
-    const reorderedActive = [...activeTasks];
-    const [movedItem] = reorderedActive.splice(fromIndex, 1);
-    
-    if (direction === 'top') reorderedActive.unshift(movedItem);
-    else if (direction === 'bottom') reorderedActive.push(movedItem);
-    else if (direction === 'up' && fromIndex > 0) reorderedActive.splice(fromIndex - 1, 0, movedItem);
-    else if (direction === 'down' && fromIndex < reorderedActive.length) reorderedActive.splice(fromIndex + 1, 0, movedItem);
-    else return;
+    const [movedItem] = activeTasks.splice(fromIndex, 1);
+    if (direction === 'top') activeTasks.unshift(movedItem);
+    else if (direction === 'bottom') activeTasks.push(movedItem);
+    else if (direction === 'up' && fromIndex > 0) activeTasks.splice(fromIndex - 1, 0, movedItem);
+    else if (direction === 'down' && fromIndex < activeTasks.length) activeTasks.splice(fromIndex + 1, 0, movedItem);
+    else { activeTasks.splice(fromIndex, 0, movedItem); return; }
 
-    const updatedTasksWithOrder = reorderedActive.map((task, index) => ({...task, order: index}));
-
-    if (isOnlineMode && supabase) {
-        const updates = updatedTasksWithOrder.map(t => supabase.from('online_tasks').update({order: t.order}).match({id: t.id}));
-        await Promise.all(updates);
-    }
+    const updatedTasksWithOrder = activeTasks.map((task, index) => ({...task, order: index}));
     
+    const originalTasks = tasks;
     setTasks([...updatedTasksWithOrder, ...completedTasks]);
 
-}, [tasks, isOnlineMode, supabase]);
+    try {
+        await api.reorderTasks(updatedTasksWithOrder.map(t => ({ id: t.id, order: t.order })));
+    } catch (error: any) {
+        setStatusMessage({type: 'error', text: `Failed to reorder tasks: ${error.message}`});
+        setTasks(originalTasks);
+    }
+}, [tasks, api]);
 
 const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' | 'down' | 'top' | 'bottom') => {
     setTodayOrder(currentOrder => {
@@ -834,28 +594,27 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
     e.preventDefault();
     if (!draggedTask || view !== 'backlog' || draggedTask.completed || targetTask.completed || sortOption !== 'manual') return;
 
-    const activeTasks = tasks.filter(t => !t.completed).sort((a,b) => a.order - b.order);
+    let activeTasks = tasks.filter(t => !t.completed).sort((a,b) => a.order - b.order);
     const completedTasks = tasks.filter(t => t.completed);
-
     const fromIndex = activeTasks.findIndex(t => t.id === draggedTask.id);
     const toIndex = activeTasks.findIndex(t => t.id === targetTask.id);
-
     if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) return;
     
-    const reordered = [...activeTasks];
-    const [moved] = reordered.splice(fromIndex, 1);
-    reordered.splice(toIndex, 0, moved);
+    const [moved] = activeTasks.splice(fromIndex, 1);
+    activeTasks.splice(toIndex, 0, moved);
 
-    const updatedTasksWithOrder = reordered.map((t, i) => ({...t, order: i}));
+    const updatedTasksWithOrder = activeTasks.map((t, i) => ({...t, order: i}));
     
-    if (isOnlineMode && supabase) {
-      const updates = updatedTasksWithOrder.map(t => supabase.from('online_tasks').update({order: t.order}).match({id: t.id}));
-      Promise.all(updates);
-    }
-    
+    const originalTasks = tasks;
     setTasks([...updatedTasksWithOrder, ...completedTasks]);
     setDraggedTask(null);
-  }, [draggedTask, view, sortOption, tasks, isOnlineMode, supabase]);
+
+    api.reorderTasks(updatedTasksWithOrder.map(t => ({ id: t.id, order: t.order })))
+      .catch((error: any) => {
+        setStatusMessage({type: 'error', text: `Failed to reorder tasks: ${error.message}`});
+        setTasks(originalTasks); // revert
+      });
+  }, [draggedTask, view, sortOption, tasks, api]);
   
   const onTodayDragStart = useCallback((item: TodayItem) => setDraggedTodayItem(item), []);
   
@@ -938,6 +697,7 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
             }));
 
             setTasks(sanitizedTasks);
+            localStorage.setItem('backlogTasks', JSON.stringify(sanitizedTasks));
             setTodayOrder([]);
             setStatusMessage({ type: 'success', text: `${sanitizedTasks.length} tasks imported successfully!` });
             setTimeout(() => setStatusMessage(null), 3000);
@@ -959,49 +719,6 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
     reader.readAsText(file);
   };
   
-  const executeSupabaseAction = async (action: SupabaseAction, session: Session) => {
-      if (!supabase) return;
-
-      setIsSupabaseLoading(true);
-      setStatusMessage(null);
-      
-      if (action === 'export') {
-        const { error } = await supabase
-          .from('tasks')
-          .insert({ user_id: session.user.id, data: tasks });
-        if (error) {
-            setStatusMessage({ type: 'error', text: `Export failed: ${error.message}` });
-        } else {
-            setStatusMessage({ type: 'success', text: "New revision saved to Supabase!" });
-        }
-      } else if (action === 'import') {
-        const { data, error } = await supabase
-          .from('tasks')
-          .select('data')
-          .eq('user_id', session.user.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-
-        if (error || !data) {
-            setStatusMessage({ type: 'error', text: `Import failed: ${error ? error.message : "No data found."}` });
-        } else {
-            const importedTasks = (data.data as any) || [];
-            if (Array.isArray(importedTasks)) {
-                setTasks(importedTasks);
-                setStatusMessage({ type: 'success', text: "Successfully imported latest revision from Supabase!" });
-            } else {
-                setStatusMessage({ type: 'error', text: "Import failed: Invalid data format in Supabase." });
-            }
-        }
-      }
-      setIsSupabaseLoading(false);
-      setSupabaseAction(null);
-      setIsPasswordModalOpen(false);
-      setPassword('');
-      setTimeout(() => setStatusMessage(null), 3000);
-  };
-
   const handleMigrateToOnline = async () => {
     if (!supabase || !supabaseSession) {
       setStatusMessage({type: 'error', text: 'Supabase is not configured or you are not logged in.'});
@@ -1023,26 +740,13 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
           await supabase.from('online_tasks').delete().eq('user_id', supabaseSession.user.id);
 
           const onlineTasks = tasks.map(t => ({
-            id: t.id,
-            user_id: supabaseSession.user.id,
-            title: t.title,
-            description: t.description,
-            completed: t.completed,
-            completion_date: t.completionDate,
-            snooze_until: t.snoozeUntil,
-            order: t.order,
+            id: t.id, user_id: supabaseSession.user.id, title: t.title, description: t.description,
+            completed: t.completed, completion_date: t.completionDate, snooze_until: t.snoozeUntil, order: t.order,
           }));
 
           const onlineSubtasks = tasks.flatMap(t => t.subtasks.map(st => ({
-            id: st.id,
-            task_id: t.id,
-            user_id: supabaseSession.user.id,
-            text: st.text,
-            completed: st.completed,
-            due_date: st.dueDate,
-            completion_date: st.completionDate,
-            recurrence: st.recurrence,
-            order: st.order,
+            id: st.id, task_id: t.id, user_id: supabaseSession.user.id, text: st.text, completed: st.completed,
+            due_date: st.dueDate, completion_date: st.completionDate, recurrence: st.recurrence, order: st.order,
           })));
 
           const { error: tasksError } = await supabase.from('online_tasks').upsert(onlineTasks);
@@ -1065,25 +769,24 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
   };
 
   const handleMigrateToLocal = async () => {
-    if (!supabase || !supabaseSession) {
-      setStatusMessage({type: 'error', text: 'Supabase is not configured or you are not logged in.'});
-      return;
-    }
-
-    setConfirmationState({
-      isOpen: true,
-      title: 'Migrate to Local Mode',
-      message: 'This will overwrite your current local data with your latest online data. This action cannot be undone. Are you sure?',
-      confirmText: 'Migrate & Overwrite',
-      confirmClass: 'bg-red-600 hover:bg-red-700',
-      onConfirm: async () => {
-        closeConfirmationModal();
-        await fetchOnlineTasks(supabase);
-        setIsOnlineMode(false);
-        setStatusMessage({ type: 'success', text: 'Successfully migrated online data to local mode!' });
-        setTimeout(() => setStatusMessage(null), 3000);
-      },
-    });
+      if (!isOnlineMode) {
+          setStatusMessage({type: 'error', text: 'You are already in local mode.'});
+          return;
+      }
+      setConfirmationState({
+          isOpen: true,
+          title: 'Migrate to Local Mode',
+          message: 'This will overwrite your current local data with your latest online data. This action cannot be undone. Are you sure?',
+          confirmText: 'Migrate & Overwrite',
+          confirmClass: 'bg-red-600 hover:bg-red-700',
+          onConfirm: () => {
+              closeConfirmationModal();
+              localStorage.setItem('backlogTasks', JSON.stringify(tasks));
+              setIsOnlineMode(false);
+              setStatusMessage({ type: 'success', text: 'Successfully migrated online data to local mode!' });
+              setTimeout(() => setStatusMessage(null), 3000);
+          },
+      });
   };
 
   return (
@@ -1145,7 +848,6 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
           </div>
         )}
 
-        {isSupabaseLoading && <div className="flex items-center justify-center my-4"><SpinnerIcon /> <span className="ml-2">Contacting Supabase...</span></div>}
         {isLoading && <div className="flex items-center justify-center my-4"><SpinnerIcon /> <span className="ml-2">Loading data...</span></div>}
 
 
@@ -1256,6 +958,7 @@ const handleMoveTodaySubtask = useCallback((subtaskId: string, direction: 'up' |
                   taskIndex={index}
                   totalTasks={sortedAndFilteredTasks.length}
                   onSnoozeTask={handleSnoozeTask}
+                  onUnsnoozeTask={handleUnsnoozeTask}
                   isDraggable={sortOption === 'manual'}
                   onUpdateSubtaskText={handleUpdateSubtaskText}
                 />
