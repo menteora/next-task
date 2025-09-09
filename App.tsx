@@ -260,7 +260,13 @@ const App: React.FC = () => {
     setTimeout(() => setStatusMessage(null), 3000);
   };
 
-  const getTodayDateString = () => new Date().toISOString().split('T')[0];
+  const getTodayDateString = () => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
 
   const extractTags = (text: string): string[] => {
     const regex = /#(\w+)/g;
@@ -570,7 +576,11 @@ const App: React.FC = () => {
     if (duration === 'day') newDate.setDate(newDate.getDate() + 1);
     if (duration === 'week') newDate.setDate(newDate.getDate() + 7);
     if (duration === 'month') newDate.setMonth(newDate.getMonth() + 1);
-    const snoozeUntilDate = newDate.toISOString().split('T')[0];
+    
+    const yyyy = newDate.getFullYear();
+    const mm = String(newDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(newDate.getDate()).padStart(2, '0');
+    const snoozeUntilDate = `${yyyy}-${mm}-${dd}`;
 
     if (isOnlineMode && supabase) {
         const { error } = await supabase.from('online_tasks').update({ snooze_until: snoozeUntilDate }).match({ id: taskId });
