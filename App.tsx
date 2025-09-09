@@ -309,7 +309,7 @@ const App: React.FC = () => {
 
     let activeTasks = tasks.filter(task => 
       !task.completed &&
-      (!task.snoozeUntil || new Date(task.snoozeUntil) <= today)
+      (!task.snoozeUntil || new Date(task.snoozeUntil + 'T00:00:00') <= today)
     );
 
     if (selectedTags.length > 0) {
@@ -342,8 +342,8 @@ const App: React.FC = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return tasks
-      .filter(task => task.snoozeUntil && new Date(task.snoozeUntil) > today && !task.completed)
-      .sort((a, b) => new Date(a.snoozeUntil!).getTime() - new Date(b.snoozeUntil!).getTime());
+      .filter(task => task.snoozeUntil && new Date(task.snoozeUntil + 'T00:00:00') > today && !task.completed)
+      .sort((a, b) => new Date(a.snoozeUntil! + 'T00:00:00').getTime() - new Date(b.snoozeUntil! + 'T00:00:00').getTime());
   }, [tasks]);
 
   const archivedTasks = useMemo(() => {
