@@ -92,6 +92,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
   };
   
   const handleSnooze = (duration: 'day' | 'week' | 'month') => {
+    console.log(`[TaskItem] Snooze button clicked for task "${task.title}" (ID: ${task.id}) with duration: ${duration}`);
     onSnoozeTask(task.id, duration);
     setIsSnoozeMenuOpen(false);
   };
