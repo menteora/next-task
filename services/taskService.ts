@@ -172,6 +172,7 @@ const createSupabaseApi = (supabase: SupabaseClient, session: Session): TaskApi 
               .from('online_tasks')
               .select('*')
               .eq('completed', false)
+              .not('snooze_until', 'is', null)
               .gt('snooze_until', todayString)
               .order('snooze_until', { ascending: true });
 
@@ -206,7 +207,8 @@ const createSupabaseApi = (supabase: SupabaseClient, session: Session): TaskApi 
         async updateTask(updatedTask: Task): Promise<void> {
             const { error } = await supabase.from('online_tasks').update({
                 title: updatedTask.title, description: updatedTask.description,
-                snooze_until: updatedTask.snoozeUntil, completed: updatedTask.completed,
+                snooze_until: updatedTask.snoozeUntil || null,
+                completed: updatedTask.completed,
                 completion_date: updatedTask.completionDate,
             }).match({ id: updatedTask.id });
 
