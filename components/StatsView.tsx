@@ -12,11 +12,18 @@ const StatsCard = ({ title, value, colorClass = 'text-indigo-500 dark:text-indig
   </div>
 );
 
+const getTodayDateString = () => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+};
+
+
 const StatsView: React.FC<StatsViewProps> = ({ tasks }) => {
   const stats = useMemo(() => {
-    const today = new Date();
-    today.setHours(23, 59, 59, 999); 
-
+    const todayString = getTodayDateString();
     const getDateKey = (date: Date) => date.toISOString().split('T')[0];
     
     let completedTasks = 0;
@@ -45,9 +52,7 @@ const StatsView: React.FC<StatsViewProps> = ({ tasks }) => {
         if (!subtask.completed) {
           pendingSubtasks++;
           if (subtask.dueDate) {
-            const dueDate = new Date(subtask.dueDate);
-            dueDate.setHours(23, 59, 59, 999);
-            if (dueDate < today) {
+            if (subtask.dueDate < todayString) {
               overdueSubtasks++;
             }
           }

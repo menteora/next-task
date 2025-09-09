@@ -309,13 +309,12 @@ const App: React.FC = () => {
     return diffDays;
   };
 
-  const sortedAndFilteredTasks = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+  const todayString = useMemo(() => getTodayDateString(), []);
 
+  const sortedAndFilteredTasks = useMemo(() => {
     let activeTasks = tasks.filter(task => 
       !task.completed &&
-      (!task.snoozeUntil || new Date(task.snoozeUntil + 'T00:00:00') <= today)
+      (!task.snoozeUntil || task.snoozeUntil <= todayString)
     );
 
     if (selectedTags.length > 0) {
@@ -342,15 +341,13 @@ const App: React.FC = () => {
     }
 
     return activeTasks;
-  }, [tasks, selectedTags, sortOption]);
+  }, [tasks, selectedTags, sortOption, todayString]);
 
   const snoozedTasks = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
     return tasks
-      .filter(task => task.snoozeUntil && new Date(task.snoozeUntil + 'T00:00:00') > today && !task.completed)
-      .sort((a, b) => new Date(a.snoozeUntil! + 'T00:00:00').getTime() - new Date(b.snoozeUntil! + 'T00:00:00').getTime());
-  }, [tasks]);
+      .filter(task => task.snoozeUntil && task.snoozeUntil > todayString && !task.completed)
+      .sort((a, b) => a.snoozeUntil!.localeCompare(b.snoozeUntil!));
+  }, [tasks, todayString]);
 
   const archivedTasks = useMemo(() => {
     return tasks
@@ -364,11 +361,7 @@ const App: React.FC = () => {
   }, [tasks]);
   
   const todaySubtasks = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayString = getTodayDateString();
     const result: TodayItem[] = [];
-
     tasks.forEach(task => {
         task.subtasks.forEach(subtask => {
             const wasCompletedToday = subtask.completed && subtask.completionDate?.startsWith(todayString);
@@ -377,9 +370,8 @@ const App: React.FC = () => {
             let isOverdueAndIncomplete = false;
 
             if (subtask.dueDate) {
-                const dueDate = new Date(subtask.dueDate + 'T00:00:00');
                 isDueToday = subtask.dueDate === todayString;
-                isOverdueAndIncomplete = dueDate < today && !subtask.completed;
+                isOverdueAndIncomplete = subtask.dueDate < todayString && !subtask.completed;
             }
 
             if (isDueToday || isOverdueAndIncomplete || wasCompletedToday) {
@@ -388,7 +380,7 @@ const App: React.FC = () => {
         });
     });
     return result;
-  }, [tasks]);
+  }, [tasks, todayString]);
 
   useEffect(() => {
     setTodayOrder(currentOrder => {
