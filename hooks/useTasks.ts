@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Task } from '../types';
 import { TaskApi } from '../services/taskService';
 import { ConfirmationState } from './useUI';
@@ -11,7 +11,7 @@ const formatDate = (date: Date): string => {
 };
 
 export const useTasks = (
-    api: TaskApi,
+    api: TaskApi | null,
     requestConfirmation: (options: Omit<ConfirmationState, 'isOpen' | 'onConfirm'> & { onConfirm: () => void }) => void
 ) => {
     const [backlogTasks, setBacklogTasks] = useState<Task[]>([]);
@@ -23,10 +23,22 @@ export const useTasks = (
     const [taskLoadingState, setTaskLoadingState] = useState({ backlog: false, snoozed: false, archive: false });
     const [taskLoadedState, setTaskLoadedState] = useState({ backlog: false, snoozed: false, archive: false });
 
+    useEffect(() => {
+        // When the API changes (e.g., switching between local and online, or from null to ready),
+        // reset the loaded state to trigger a refetch of data from the new source.
+        // Also clear current tasks to avoid showing stale data.
+        if (api) {
+            setTaskLoadedState({ backlog: false, snoozed: false, archive: false });
+            setBacklogTasks([]);
+            setSnoozedTasks([]);
+            setArchivedTasks([]);
+        }
+    }, [api]);
+
     const allTasks = [...backlogTasks, ...snoozedTasks, ...archivedTasks];
 
     const loadBacklogTasks = useCallback(async (force = false) => {
-        if ((taskLoadedState.backlog && !force) || taskLoadingState.backlog) return;
+        if (!api || ((taskLoadedState.backlog && !force) || taskLoadingState.backlog)) return;
         setTaskLoadingState(prev => ({ ...prev, backlog: true }));
         try {
             const tasks = await api.getBacklogTasks();
@@ -37,7 +49,7 @@ export const useTasks = (
     }, [api, taskLoadedState.backlog, taskLoadingState.backlog]);
 
     const loadSnoozedTasks = useCallback(async (force = false) => {
-        if ((taskLoadedState.snoozed && !force) || taskLoadingState.snoozed) return;
+        if (!api || ((taskLoadedState.snoozed && !force) || taskLoadingState.snoozed)) return;
         setTaskLoadingState(prev => ({ ...prev, snoozed: true }));
         try {
             const tasks = await api.getSnoozedTasks();
@@ -48,7 +60,7 @@ export const useTasks = (
     }, [api, taskLoadedState.snoozed, taskLoadingState.snoozed]);
 
     const loadArchivedTasks = useCallback(async (force = false) => {
-        if ((taskLoadedState.archive && !force) || taskLoadingState.archive) return;
+        if (!api || ((taskLoadedState.archive && !force) || taskLoadingState.archive)) return;
         setTaskLoadingState(prev => ({ ...prev, archive: true }));
         try {
             const tasks = await api.getArchivedTasks();
@@ -59,10 +71,12 @@ export const useTasks = (
     }, [api, taskLoadedState.archive, taskLoadingState.archive]);
 
     const loadAllTasks = useCallback(async () => {
+        if (!api) return;
         await Promise.all([loadBacklogTasks(), loadSnoozedTasks(), loadArchivedTasks()]);
-    }, [loadBacklogTasks, loadSnoozedTasks, loadArchivedTasks]);
+    }, [api, loadBacklogTasks, loadSnoozedTasks, loadArchivedTasks]);
 
     const handleAddTask = async (title: string, description: string) => {
+        if (!api) return;
         const maxOrder = backlogTasks.reduce((max, task) => Math.max(task.order, max), -1);
         try {
             const newTask = await api.addTask(title, description, '', maxOrder + 1);
@@ -71,6 +85,7 @@ export const useTasks = (
     };
 
     const handleUpdateTask = useCallback(async (updatedTask: Task) => {
+        if (!api) return;
         const todayString = formatDate(new Date());
         const findTask = allTasks.find(t => t.id === updatedTask.id);
         
@@ -108,6 +123,7 @@ export const useTasks = (
     }, [api, modalTask, allTasks, taskLoadedState, loadBacklogTasks, loadSnoozedTasks, loadArchivedTasks]);
 
     const handleDeleteTask = useCallback(async (taskId: string) => {
+        if (!api) return;
         const task = allTasks.find(t => t.id === taskId);
         if (!task) return;
         const todayString = formatDate(new Date());
@@ -177,6 +193,7 @@ export const useTasks = (
     }, [allTasks, handleUpdateTask]);
     
     const handleMoveTask = useCallback(async (taskId: string, direction: 'up' | 'down' | 'top' | 'bottom') => {
+        if (!api) return;
         let activeTasks = [...backlogTasks].sort((a,b) => a.order - b.order);
         const fromIndex = activeTasks.findIndex(t => t.id === taskId);
         if(fromIndex === -1) return;
@@ -198,7 +215,7 @@ export const useTasks = (
     const onDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => e.preventDefault(), []);
     const onDrop = useCallback((e: React.DragEvent<HTMLDivElement>, targetTask: Task) => {
         e.preventDefault();
-        if (!draggedTask || draggedTask.completed || targetTask.completed) return;
+        if (!api || !draggedTask || draggedTask.completed || targetTask.completed) return;
         
         let activeTasks = [...backlogTasks].sort((a,b) => a.order - b.order);
         const fromIndex = activeTasks.findIndex(t => t.id === draggedTask.id);

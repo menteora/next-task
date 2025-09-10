@@ -250,15 +250,22 @@ const createSupabaseApi = (supabase: SupabaseClient, session: Session): TaskApi 
  * @param isOnlineMode - Flag to determine if the app is in online or local mode.
  * @param supabase - The Supabase client instance, required for online mode.
  * @param session - The active Supabase session, required for online mode.
- * @returns An implementation of the TaskApi.
+ * @returns An implementation of the TaskApi, or null if the API is not ready.
  */
 export const createTaskService = (
     isOnlineMode: boolean,
     supabase: SupabaseClient | null,
     session: Session | null
-): TaskApi => {
-    if (isOnlineMode && supabase && session) {
+): TaskApi | null => {
+    if (isOnlineMode) {
+      if (supabase && session) {
+        // Online mode is fully ready.
         return createSupabaseApi(supabase, session);
+      }
+      // Online mode is selected, but the session is not yet available.
+      // Return null to indicate the API is not ready to be used.
+      return null;
     }
+    // Offline mode.
     return localApi;
 };

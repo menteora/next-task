@@ -24,9 +24,10 @@ export const useAppSync = (view: View, theme: Theme) => {
   const [supabaseSession, setSupabaseSession] = useState<Session | null>(null);
   const [statusMessage, setStatusMessage] = useState<StatusMessage | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSessionLoading, setIsSessionLoading] = useState(true);
 
   const supabase = useMemo(() => supabaseConfig ? createSupabaseClient(supabaseConfig.url, supabaseConfig.anonKey) : null, [supabaseConfig]);
-  const api = useMemo<TaskApi>(() => createTaskService(isOnlineMode, supabase, supabaseSession), [isOnlineMode, supabase, supabaseSession]);
+  const api = useMemo<TaskApi | null>(() => createTaskService(isOnlineMode, supabase, supabaseSession), [isOnlineMode, supabase, supabaseSession]);
 
   useEffect(() => {
     localStorage.setItem('isOnlineMode', JSON.stringify(isOnlineMode));
@@ -38,12 +39,22 @@ export const useAppSync = (view: View, theme: Theme) => {
   }, [theme]);
 
   useEffect(() => {
-    if (supabase) {
-      supabase.auth.getSession().then(({ data: { session } }) => setSupabaseSession(session));
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => setSupabaseSession(session));
+    // We only need to check for a session if we are in online mode.
+    if (isOnlineMode && supabase) {
+      setIsSessionLoading(true);
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        setSupabaseSession(session);
+        setIsSessionLoading(false);
+      });
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        setSupabaseSession(session);
+      });
       return () => subscription.unsubscribe();
+    } else {
+      // If not in online mode, the session is not relevant.
+      setIsSessionLoading(false);
     }
-  }, [supabase]);
+  }, [supabase, isOnlineMode]);
 
   const showStatus = (type: 'success' | 'error', text: string, duration = 3000) => {
       setStatusMessage({ type, text });
@@ -95,6 +106,7 @@ export const useAppSync = (view: View, theme: Theme) => {
     supabaseConfig,
     supabaseSession,
     isLoading,
+    isSessionLoading,
     statusMessage,
     setIsLoading,
     setStatusMessage,
