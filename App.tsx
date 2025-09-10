@@ -20,7 +20,8 @@ const App: React.FC = () => {
   } = useUI();
 
   const {
-    api, isOnlineMode, supabaseConfig, isLoading: isSyncLoading, statusMessage,
+    // FIX: Destructure 'isLoading' from useAppSync and alias it to 'isSyncLoading' to resolve the error, as 'isSyncLoading' does not exist on the return type.
+    api, isOnlineMode, supabaseConfig, isLoading: isSyncLoading, isSessionLoading, statusMessage,
     setIsOnlineMode, handleSaveSupabaseConfig, handleMigrateToLocal, handleMigrateToOnline
   } = useAppSync(view, theme);
 
@@ -101,6 +102,8 @@ const App: React.FC = () => {
       }
   };
 
+  const isLoading = isSyncLoading || (isOnlineMode && isSessionLoading);
+
   return (
     <div className={`min-h-screen ${theme} bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-white`}>
       {modalTask && <SubtaskModal task={modalTask} onClose={handleCloseModal} onUpdateTask={handleUpdateTask} onSetSubtaskDueDate={handleSetSubtaskDueDate} />}
@@ -140,8 +143,13 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {isSyncLoading ? (
-          <div className="flex items-center justify-center my-4"><SpinnerIcon /> <span className="ml-2">Migrating data...</span></div>
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center my-10">
+            <SpinnerIcon className="h-10 w-10 text-indigo-500" /> 
+            <span className="ml-2 mt-4 text-lg font-medium text-gray-600 dark:text-gray-300">
+              {isSyncLoading ? 'Migrating data...' : 'Connecting to online service...'}
+            </span>
+          </div>
         ) : (
           renderView()
         )}
