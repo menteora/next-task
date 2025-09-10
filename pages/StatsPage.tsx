@@ -1,8 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { Task } from '../types';
+import { SpinnerIcon } from '../components/icons';
 
 interface StatsPageProps {
   tasks: Task[];
+  loadTasks: () => void;
+  isLoading: boolean;
 }
 
 const StatsCard = ({ title, value, colorClass = 'text-indigo-500 dark:text-indigo-400' }: { title: string, value: number | string, colorClass?: string }) => (
@@ -20,7 +23,11 @@ const getTodayDateString = () => {
     return `${yyyy}-${mm}-${dd}`;
 };
 
-const StatsPage: React.FC<StatsPageProps> = ({ tasks }) => {
+const StatsPage: React.FC<StatsPageProps> = ({ tasks, loadTasks, isLoading }) => {
+  useEffect(() => {
+    loadTasks();
+  }, [loadTasks]);
+
   const stats = useMemo(() => {
     const todayString = getTodayDateString();
     const getDateKey = (date: Date) => date.toISOString().split('T')[0];
@@ -73,6 +80,15 @@ const StatsPage: React.FC<StatsPageProps> = ({ tasks }) => {
   }, [tasks]);
 
   const maxWeeklyCompletion = Math.max(...Object.values(stats.weeklyCompletion), 1);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-10">
+        <SpinnerIcon />
+        <span className="ml-2">Loading stats...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-fade-in-down">
