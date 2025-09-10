@@ -20,12 +20,13 @@ const App: React.FC = () => {
   } = useUI();
 
   const {
-    api, isOnlineMode, supabaseConfig, isLoading, statusMessage,
+    api, isOnlineMode, supabaseConfig, isLoading: isSyncLoading, statusMessage,
     setIsOnlineMode, handleSaveSupabaseConfig, handleMigrateToLocal, handleMigrateToOnline
   } = useAppSync(view, theme);
 
   const {
     allTasks, backlogTasks, snoozedTasks, archivedTasks, modalTask, draggedTask,
+    taskLoadingState, loadBacklogTasks, loadSnoozedTasks, loadArchivedTasks, loadAllTasks,
     handleAddTask, requestDeleteTask, handleUpdateTask, handleToggleTaskComplete,
     handleSnoozeTask, handleUnsnoozeTask, handleSetSubtaskDueDate, handleUpdateSubtaskText,
     handleMoveTask, handleOpenSubtaskModal, handleCloseModal,
@@ -56,6 +57,7 @@ const App: React.FC = () => {
                   onSnoozeTask={handleSnoozeTask} onUnsnoozeTask={handleUnsnoozeTask} onTagClick={(tag) => setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])}
                   onClearTags={() => setSelectedTags([])} onSetSortOption={setSortOption} onSetCompactView={setCompactView}
                   onUpdateSubtaskText={handleUpdateSubtaskText} onSetSubtaskDueDate={handleSetSubtaskDueDate}
+                  loadTasks={loadBacklogTasks} isLoading={taskLoadingState.backlog}
               />;
           case 'today':
               return <TodayPage
@@ -67,21 +69,28 @@ const App: React.FC = () => {
                       if(task) handleUpdateTask({ ...task, description: newDescription });
                   }} 
                   onUpdateSubtaskText={handleUpdateSubtaskText}
+                  loadTasks={loadAllTasks} isLoading={taskLoadingState.backlog || taskLoadingState.snoozed || taskLoadingState.archive}
               />;
           case 'snoozed':
               return <SnoozedPage 
                   snoozedTasks={snoozedTasks} allTags={allTags} onDeleteTask={requestDeleteTask} onUpdateTask={handleUpdateTask}
                   onOpenSubtaskModal={handleOpenSubtaskModal} onToggleTaskComplete={handleToggleTaskComplete} onSnoozeTask={handleSnoozeTask}
                   onUnsnoozeTask={handleUnsnoozeTask} onUpdateSubtaskText={handleUpdateSubtaskText} onSetSubtaskDueDate={handleSetSubtaskDueDate}
+                  loadTasks={loadSnoozedTasks} isLoading={taskLoadingState.snoozed}
               />;
           case 'archive':
               return <ArchivePage
                   archivedTasks={archivedTasks} allTags={allTags} onDeleteTask={requestDeleteTask} onUpdateTask={handleUpdateTask}
                   onOpenSubtaskModal={handleOpenSubtaskModal} onToggleTaskComplete={handleToggleTaskComplete}
                   onUpdateSubtaskText={handleUpdateSubtaskText} onSetSubtaskDueDate={handleSetSubtaskDueDate}
+                  loadTasks={loadArchivedTasks} isLoading={taskLoadingState.archive}
               />;
           case 'stats':
-              return <StatsPage tasks={allTasks} />;
+              return <StatsPage 
+                  tasks={allTasks} 
+                  loadTasks={loadAllTasks} 
+                  isLoading={taskLoadingState.backlog || taskLoadingState.snoozed || taskLoadingState.archive} 
+              />;
           case 'settings':
               return <SettingsPage
                   currentConfig={supabaseConfig} onSave={handleSaveSupabaseConfig} isOnlineMode={isOnlineMode}
@@ -131,8 +140,8 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {isLoading ? (
-          <div className="flex items-center justify-center my-4"><SpinnerIcon /> <span className="ml-2">Loading data...</span></div>
+        {isSyncLoading ? (
+          <div className="flex items-center justify-center my-4"><SpinnerIcon /> <span className="ml-2">Migrating data...</span></div>
         ) : (
           renderView()
         )}

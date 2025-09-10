@@ -1,9 +1,9 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Task } from '../types';
 // FIX: The SortOption type is exported from useUI.ts, not App.tsx.
 import { SortOption } from '../hooks/useUI';
 import TaskItem from '../components/TaskItem';
-import { PlusIcon, ArrowsPointingInIcon, ArrowsPointingOutIcon } from '../components/icons';
+import { PlusIcon, ArrowsPointingInIcon, ArrowsPointingOutIcon, SpinnerIcon } from '../components/icons';
 import MarkdownInput from '../components/MarkdownInput';
 
 interface BacklogPageProps {
@@ -30,6 +30,8 @@ interface BacklogPageProps {
   onSetCompactView: (isCompact: boolean) => void;
   onUpdateSubtaskText: (taskId: string, subtaskId: string, newText: string) => void;
   onSetSubtaskDueDate: (subtaskId: string, taskId: string, date: string) => void;
+  loadTasks: () => void;
+  isLoading: boolean;
 }
 
 const extractTags = (text: string): string[] => {
@@ -64,11 +66,16 @@ const BacklogPage: React.FC<BacklogPageProps> = ({
   backlogTasks, draggedTask, allTags, selectedTags, isCompactView, sortOption,
   onAddTask, onDeleteTask, onUpdateTask, onOpenSubtaskModal, onDragStart, onDragOver, onDrop,
   onToggleTaskComplete, onMoveTask, onSnoozeTask, onUnsnoozeTask, onTagClick, onClearTags,
-  onSetSortOption, onSetCompactView, onUpdateSubtaskText, onSetSubtaskDueDate
+  onSetSortOption, onSetCompactView, onUpdateSubtaskText, onSetSubtaskDueDate,
+  loadTasks, isLoading
 }) => {
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDescription, setNewTaskDescription] = useState('');
   const [isFormVisible, setIsFormVisible] = useState(false);
+
+  useEffect(() => {
+    loadTasks();
+  }, [loadTasks]);
 
   const handleAddTagToDescription = useCallback((tag: string, setter: React.Dispatch<React.SetStateAction<string>>) => {
     setter(prev => `${prev.trim()} ${tag}`.trim());
@@ -199,34 +206,40 @@ const BacklogPage: React.FC<BacklogPageProps> = ({
       </div>
 
       <div>
-        {sortedAndFilteredTasks.map((task, index) => (
-          <TaskItem
-            key={task.id}
-            task={task}
-            onDelete={onDeleteTask}
-            onUpdate={onUpdateTask}
-            onOpenSubtaskModal={onOpenSubtaskModal}
-            onDragStart={onDragStart}
-            onDragOver={onDragOver}
-            onDrop={onDrop}
-            isDragging={draggedTask?.id === task.id}
-            onSetSubtaskDueDate={onSetSubtaskDueDate}
-            onToggleTaskComplete={onToggleTaskComplete}
-            allTags={allTags}
-            isCompactView={isCompactView}
-            onMoveTask={onMoveTask}
-            taskIndex={index}
-            totalTasks={sortedAndFilteredTasks.length}
-            onSnoozeTask={onSnoozeTask}
-            onUnsnoozeTask={onUnsnoozeTask}
-            isDraggable={sortOption === 'manual'}
-            onUpdateSubtaskText={onUpdateSubtaskText}
-          />
-        ))}
-        {sortedAndFilteredTasks.length === 0 && (
-          <div className="text-center py-10">
-            <p className="text-gray-500">No active tasks found. Time to add some!</p>
-          </div>
+        {isLoading ? (
+            <div className="flex items-center justify-center py-10">
+                <SpinnerIcon />
+                <span className="ml-2">Loading tasks...</span>
+            </div>
+        ) : sortedAndFilteredTasks.length > 0 ? (
+            sortedAndFilteredTasks.map((task, index) => (
+                <TaskItem
+                    key={task.id}
+                    task={task}
+                    onDelete={onDeleteTask}
+                    onUpdate={onUpdateTask}
+                    onOpenSubtaskModal={onOpenSubtaskModal}
+                    onDragStart={onDragStart}
+                    onDragOver={onDragOver}
+                    onDrop={onDrop}
+                    isDragging={draggedTask?.id === task.id}
+                    onSetSubtaskDueDate={onSetSubtaskDueDate}
+                    onToggleTaskComplete={onToggleTaskComplete}
+                    allTags={allTags}
+                    isCompactView={isCompactView}
+                    onMoveTask={onMoveTask}
+                    taskIndex={index}
+                    totalTasks={sortedAndFilteredTasks.length}
+                    onSnoozeTask={onSnoozeTask}
+                    onUnsnoozeTask={onUnsnoozeTask}
+                    isDraggable={sortOption === 'manual'}
+                    onUpdateSubtaskText={onUpdateSubtaskText}
+                />
+            ))
+        ) : (
+            <div className="text-center py-10">
+                <p className="text-gray-500">No active tasks found. Time to add some!</p>
+            </div>
         )}
       </div>
     </>

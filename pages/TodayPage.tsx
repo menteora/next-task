@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Subtask, Task } from '../types';
 import TodaySubtaskItem from '../components/TodaySubtaskItem';
+import { SpinnerIcon } from '../components/icons';
 
 type TodayItem = { subtask: Subtask, parentTask: Task };
 
@@ -16,13 +17,29 @@ interface TodayPageProps {
   onMoveSubtask: (subtaskId: string, direction: 'up' | 'down' | 'top' | 'bottom') => void;
   onUpdateParentTaskDescription: (taskId: string, newDescription: string) => void;
   onUpdateSubtaskText: (taskId: string, subtaskId: string, newText: string) => void;
+  loadTasks: () => void;
+  isLoading: boolean;
 }
 
 const TodayPage: React.FC<TodayPageProps> = ({
   incompleteTodaySubtasks, completedTodaySubtasks, draggedTodayItem,
   onToggleComplete, onRemoveDueDate, onDragStart, onDragOver, onDrop,
-  onMoveSubtask, onUpdateParentTaskDescription, onUpdateSubtaskText
+  onMoveSubtask, onUpdateParentTaskDescription, onUpdateSubtaskText,
+  loadTasks, isLoading
 }) => {
+  useEffect(() => {
+    loadTasks();
+  }, [loadTasks]);
+  
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-10">
+        <SpinnerIcon />
+        <span className="ml-2">Loading today's tasks...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="animate-fade-in-down">
       <h2 className="text-xl sm:text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Today's Focus</h2>
