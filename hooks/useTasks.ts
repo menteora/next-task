@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { Task } from '../types';
 import { TaskApi } from '../services/taskService';
 import { ConfirmationState } from './useUI';
@@ -35,7 +35,7 @@ export const useTasks = (
         }
     }, [api]);
 
-    const allTasks = [...backlogTasks, ...snoozedTasks, ...archivedTasks];
+    const allTasks = useMemo(() => [...backlogTasks, ...snoozedTasks, ...archivedTasks], [backlogTasks, snoozedTasks, archivedTasks]);
 
     const loadBacklogTasks = useCallback(async (force = false) => {
         if (!api || ((taskLoadedState.backlog && !force) || taskLoadingState.backlog)) return;
