@@ -223,7 +223,7 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
   
   const subtaskToDelete = task.subtasks.find(st => st.id === confirmingDeleteSubtaskId);
 
-  const incompleteSubtasks = task.subtasks.filter(st => !st.completed);
+  const incompleteSubtasks = task.subtasks.filter(st => !st.completed).sort((a, b) => a.order - b.order);
   const completedSubtasks = task.subtasks
     .filter(st => st.completed)
     .sort((a, b) => {
