@@ -101,16 +101,19 @@ const BacklogPage: React.FC<BacklogPageProps> = ({
     }
 
     if (sortOption === 'days_passed') {
-        tasksToDisplay.sort((a, b) => {
-            const daysA = calculateLastTouchedDaysAgo(a);
-            const daysB = calculateLastTouchedDaysAgo(b);
+        tasksToDisplay = tasksToDisplay
+            .map(task => ({ task, daysAgo: calculateLastTouchedDaysAgo(task) }))
+            .sort((a, b) => {
+                const daysA = a.daysAgo;
+                const daysB = b.daysAgo;
 
-            if (daysA === null && daysB === null) return a.order - b.order;
-            if (daysA === null) return 1; 
-            if (daysB === null) return -1; 
-            
-            return daysB - daysA;
-        });
+                if (daysA === null && daysB === null) return a.task.order - b.task.order;
+                if (daysA === null) return 1; 
+                if (daysB === null) return -1; 
+                
+                return daysB - daysA;
+            })
+            .map(item => item.task);
     } else {
       tasksToDisplay.sort((a, b) => a.order - b.order);
     }
