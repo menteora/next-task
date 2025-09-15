@@ -299,7 +299,7 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({ task, onClose, onUpdateTask
                                         <input
                                             type="date"
                                             value={subtask.dueDate || ''}
-                                            onChange={(e) => handleDateChange(subtask.id, e.target.value)}
+                                            onInput={(e) => handleDateChange(subtask.id, (e.target as HTMLInputElement).value)}
                                             className="bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 border-none rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                         />
                                         <button onClick={() => onSetSubtaskDueDate(subtask.id, task.id, getTodayDateString())} className="text-gray-400 dark:text-gray-500 hover:text-yellow-500 dark:hover:text-yellow-400 transition-colors p-1" aria-label={`Schedule for today`}>
