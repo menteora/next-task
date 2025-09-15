@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Task } from '../types';
-import { TrashIcon, ChevronDownIcon, GripVerticalIcon, EditIcon, CalendarPlusIcon, CalendarIcon, ChevronUpIcon, ChevronDoubleUpIcon, ChevronDoubleDownIcon, ClockIcon, SnoozeIcon, CheckIcon } from './icons';
+import { TrashIcon, ChevronDownIcon, GripVerticalIcon, EditIcon, CalendarPlusIcon, CalendarIcon, ChevronUpIcon, ChevronDoubleUpIcon, ChevronDoubleDownIcon, ClockIcon, SnoozeIcon, CheckIcon, CalendarClockIcon } from './icons';
 import MarkdownInput from './MarkdownInput';
 
 interface TaskItemProps {
@@ -109,7 +109,10 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
 
   const nextAction = task.subtasks.find(st => !st.completed);
   const allSubtasksCompleted = task.subtasks.length > 0 && task.subtasks.every(st => st.completed);
-  const isNextActionScheduledForToday = nextAction?.dueDate === getTodayDateString();
+  const todayDateString = getTodayDateString();
+  const isNextActionScheduledForToday = nextAction?.dueDate === todayDateString;
+  const isNextActionScheduledForFuture = nextAction?.dueDate && nextAction.dueDate > todayDateString;
+
 
   const handleStartEditNextAction = () => {
     if (!nextAction) return;
@@ -207,7 +210,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
                                 id={`snooze-${task.id}`}
                                 value={editingSnoozeUntil || ''}
                                 onChange={(e) => setEditingSnoozeUntil(e.target.value)}
-                                min={getTodayDateString()}
+                                min={todayDateString}
                                 className="w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             />
                             {editingSnoozeUntil && (
@@ -350,13 +353,31 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
             <div className="flex-grow flex flex-col sm:flex-row sm:items-center justify-between min-w-0 py-1">
               <div className="flex items-center flex-grow mb-2 sm:mb-0 sm:mr-2 min-w-0">
                 <button
-                  onClick={() => !isNextActionScheduledForToday && nextAction && onSetSubtaskDueDate(nextAction.id, task.id, getTodayDateString())}
-                  className={`p-2 rounded-full transition-colors flex-shrink-0 ${isNextActionScheduledForToday ? 'text-green-500 cursor-default' : 'text-gray-500 dark:text-gray-400 hover:bg-yellow-100 dark:hover:bg-yellow-900/50 hover:text-yellow-600 dark:hover:text-yellow-400'}`}
-                  aria-label={isNextActionScheduledForToday && nextAction ? `Subtask '${nextAction.text}' is scheduled for today` : nextAction ? `Schedule subtask '${nextAction.text}' for today` : 'Schedule for today'}
-                  title={isNextActionScheduledForToday ? "Scheduled for Today" : "Schedule for Today"}
+                  onClick={() => !isNextActionScheduledForToday && nextAction && onSetSubtaskDueDate(nextAction.id, task.id, todayDateString)}
+                  className={`p-2 rounded-full transition-colors flex-shrink-0 ${
+                    isNextActionScheduledForToday 
+                      ? 'text-green-500 cursor-default' 
+                      : isNextActionScheduledForFuture
+                      ? 'text-blue-500 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50'
+                      : 'text-gray-500 dark:text-gray-400 hover:bg-yellow-100 dark:hover:bg-yellow-900/50 hover:text-yellow-600 dark:hover:text-yellow-400'
+                  }`}
+                  aria-label={
+                    isNextActionScheduledForToday
+                      ? `Subtask '${nextAction.text}' is scheduled for today`
+                      : isNextActionScheduledForFuture
+                      ? `Reschedule subtask '${nextAction.text}' for today`
+                      : `Schedule subtask '${nextAction.text}' for today`
+                  }
+                  title={
+                    isNextActionScheduledForToday
+                      ? "Scheduled for Today"
+                      : isNextActionScheduledForFuture
+                      ? "Scheduled for a future date. Click to move to Today."
+                      : "Schedule for Today"
+                  }
                   disabled={isNextActionScheduledForToday || !nextAction}
                 >
-                  {isNextActionScheduledForToday ? <CalendarIcon className="h-6 w-6" /> : <CalendarPlusIcon />}
+                  {isNextActionScheduledForToday ? <CalendarIcon /> : isNextActionScheduledForFuture ? <CalendarClockIcon /> : <CalendarPlusIcon />}
                 </button>
                 {isEditingNextAction && nextAction ? (
                    <input
