@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Task } from '../types';
@@ -36,6 +36,16 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [isEditingNextAction, setIsEditingNextAction] = useState(false);
   const [editingNextActionText, setEditingNextActionText] = useState('');
+
+  useEffect(() => {
+    // When task prop changes, if we are NOT editing, we should update our editing state
+    // so that when editing begins, it has the latest data.
+    if (!isEditing) {
+        setEditingTitle(task.title);
+        setEditingDescription(task.description);
+        setEditingSnoozeUntil(task.snoozeUntil);
+    }
+  }, [isEditing, task.title, task.description, task.snoozeUntil]);
 
   const lastTouchedDaysAgo = useMemo(() => {
     const completedSubtasks = task.subtasks.filter(st => st.completed && st.completionDate);
