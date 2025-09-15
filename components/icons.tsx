@@ -31,6 +31,7 @@ import {
   CalendarX2,
   Link,
   Check,
+  CalendarClock,
 } from 'lucide-react';
 
 // Note: The original components had specific classNames.
@@ -95,3 +96,5 @@ export const SnoozeIcon = ({ className = "h-6 w-6", ...props }: LucideProps) => 
 export const CalendarX2Icon = (props: LucideProps) => <CalendarX2 className="h-5 w-5" {...props} />;
 
 export const CheckIcon = (props: LucideProps) => <Check className="h-4 w-4" {...props} />;
+
+export const CalendarClockIcon = (props: LucideProps) => <CalendarClock className="h-6 w-6" {...props} />;
