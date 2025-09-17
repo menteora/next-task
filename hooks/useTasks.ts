@@ -174,11 +174,11 @@ export const useTasks = (
     }, [backlogTasks, handleUpdateTask]);
 
     const handleUnsnoozeTask = useCallback((taskId: string) => {
-        const task = snoozedTasks.find(t => t.id === taskId);
+        const task = allTasks.find(t => t.id === taskId);
         if (!task) return;
         const { snoozeUntil, ...rest } = task;
         handleUpdateTask(rest);
-    }, [snoozedTasks, handleUpdateTask]);
+    }, [allTasks, handleUpdateTask]);
 
     const handleSetSubtaskDueDate = useCallback((subtaskId: string, taskId: string, date: string) => {
         const task = allTasks.find(t => t.id === taskId);
@@ -260,3 +260,4 @@ export const useTasks = (
         onDrop,
     };
 };
+

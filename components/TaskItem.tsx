@@ -112,6 +112,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
   const todayDateString = getTodayDateString();
   const isNextActionScheduledForToday = nextAction?.dueDate === todayDateString;
   const isNextActionScheduledForFuture = nextAction?.dueDate && nextAction.dueDate > todayDateString;
+  const isSnoozedInFuture = task.snoozeUntil && task.snoozeUntil > todayDateString;
 
 
   const handleStartEditNextAction = () => {
@@ -308,8 +309,8 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
            <ReactMarkdown remarkPlugins={[remarkGfm]}>{task.description}</ReactMarkdown>
          </div>
       )}
-
-       {task.snoozeUntil && !task.completed && onUnsnoozeTask && (
+      
+       {isSnoozedInFuture && !task.completed && onUnsnoozeTask && (
         <div className="mt-3 p-2 bg-yellow-100 dark:bg-yellow-900/50 rounded-md flex items-center justify-between">
           <p className="text-sm text-yellow-800 dark:text-yellow-300 flex items-center">
             <SnoozeIcon className="h-4 w-4 inline mr-2" />
