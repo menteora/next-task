@@ -1,5 +1,5 @@
 {
-  "name": "backlog-todo-list",
+  "name": "next-task-v2",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -11,10 +11,15 @@
   "dependencies": {
     "react": "^19.1.1",
     "@supabase/supabase-js": "2",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "lucide-react": "0.408.0",
+    "lucide": "0.408.0",
+    "react-markdown": "9.0.1",
+    "remark-gfm": "4.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^5.0.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
   }

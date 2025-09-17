@@ -1,22 +1,35 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { Task } from '../types';
+import { SpinnerIcon } from '../components/icons';
 
-interface StatsViewProps {
+interface StatsPageProps {
   tasks: Task[];
+  loadTasks: () => void;
+  isLoading: boolean;
 }
 
-const StatsCard = ({ title, value, colorClass = 'text-cyan-500 dark:text-cyan-400' }: { title: string, value: number | string, colorClass?: string }) => (
-  <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md flex flex-col items-center justify-center">
-    <span className={`text-4xl font-bold ${colorClass}`}>{value}</span>
-    <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mt-2">{title}</p>
+const StatsCard = ({ title, value, colorClass = 'text-indigo-500 dark:text-indigo-400' }: { title: string, value: number | string, colorClass?: string }) => (
+  <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md flex flex-col items-center justify-center">
+    <span className={`text-3xl sm:text-4xl font-bold ${colorClass}`}>{value}</span>
+    <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mt-2 text-center">{title}</p>
   </div>
 );
 
-const StatsView: React.FC<StatsViewProps> = ({ tasks }) => {
-  const stats = useMemo(() => {
+const getTodayDateString = () => {
     const today = new Date();
-    today.setHours(23, 59, 59, 999); 
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+};
 
+const StatsPage: React.FC<StatsPageProps> = ({ tasks, loadTasks, isLoading }) => {
+  useEffect(() => {
+    loadTasks();
+  }, [loadTasks]);
+
+  const stats = useMemo(() => {
+    const todayString = getTodayDateString();
     const getDateKey = (date: Date) => date.toISOString().split('T')[0];
     
     let completedTasks = 0;
@@ -45,9 +58,7 @@ const StatsView: React.FC<StatsViewProps> = ({ tasks }) => {
         if (!subtask.completed) {
           pendingSubtasks++;
           if (subtask.dueDate) {
-            const dueDate = new Date(subtask.dueDate);
-            dueDate.setHours(23, 59, 59, 999);
-            if (dueDate < today) {
+            if (subtask.dueDate < todayString) {
               overdueSubtasks++;
             }
           }
@@ -70,10 +81,19 @@ const StatsView: React.FC<StatsViewProps> = ({ tasks }) => {
 
   const maxWeeklyCompletion = Math.max(...Object.values(stats.weeklyCompletion), 1);
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-10">
+        <SpinnerIcon />
+        <span className="ml-2">Loading stats...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8 animate-fade-in-down">
       <div>
-        <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">At a Glance</h2>
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">At a Glance</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <StatsCard title="Completed Tasks" value={stats.completedTasks} colorClass="text-green-500 dark:text-green-400" />
           <StatsCard title="Pending Sub-tasks" value={stats.pendingSubtasks} />
@@ -82,9 +102,9 @@ const StatsView: React.FC<StatsViewProps> = ({ tasks }) => {
       </div>
 
       <div>
-        <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Weekly Activity</h2>
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-            <div className="flex justify-between items-end h-48 space-x-2">
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Weekly Activity</h2>
+        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md">
+            <div className="flex justify-between items-end h-48 space-x-1 sm:space-x-2">
                 {Object.entries(stats.weeklyCompletion).map(([date, count]) => {
                     const day = new Date(date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short' });
                     const height = (count / maxWeeklyCompletion) * 100;
@@ -92,7 +112,7 @@ const StatsView: React.FC<StatsViewProps> = ({ tasks }) => {
                         <div key={date} className="flex flex-col items-center justify-end flex-1 h-full">
                            <span className="text-xs font-bold text-gray-600 dark:text-gray-300">{count}</span>
                            <div
-                             className="w-full bg-cyan-500 dark:bg-cyan-400 rounded-t-md mt-1"
+                             className="w-full bg-indigo-500 dark:bg-indigo-400 rounded-t-md mt-1"
                              style={{ height: `${height}%` }}
                              title={`${count} completed on ${new Date(date + 'T00:00:00').toLocaleDateString()}`}
                            ></div>
@@ -106,13 +126,13 @@ const StatsView: React.FC<StatsViewProps> = ({ tasks }) => {
       </div>
       
       <div>
-        <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Top Tags</h2>
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-700 dark:text-gray-300 mb-4">Top Tags</h2>
+        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md">
             {stats.topTags.length > 0 ? (
                 <ul className="space-y-3">
                     {stats.topTags.map(([tag, count]) => (
                         <li key={tag} className="flex justify-between items-center text-gray-700 dark:text-gray-300">
-                           <span className="font-semibold bg-cyan-100 dark:bg-cyan-900/50 text-cyan-700 dark:text-cyan-400 rounded px-2 py-1">{tag}</span>
+                           <span className="font-semibold bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-400 rounded px-2 py-1">{tag}</span>
                            <span className="font-bold">{count} {count > 1 ? 'uses' : 'use'}</span>
                         </li>
                     ))}
@@ -127,4 +147,4 @@ const StatsView: React.FC<StatsViewProps> = ({ tasks }) => {
   );
 };
 
-export default StatsView;
+export default StatsPage;

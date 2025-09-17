@@ -1,10 +1,15 @@
+
 export interface Subtask {
   id: string;
   text: string;
   completed: boolean;
   dueDate?: string;
-  isInstance?: boolean;
+  recurrence?: {
+    unit: 'day' | 'week' | 'month' | 'year';
+    value: number;
+  };
   completionDate?: string;
+  order: number;
 }
 
 export interface Task {
@@ -12,7 +17,8 @@ export interface Task {
   title: string;
   description: string;
   subtasks: Subtask[];
-  recurring?: boolean;
   completed: boolean;
   completionDate?: string;
+  snoozeUntil?: string;
+  order: number;
 }

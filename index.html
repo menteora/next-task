@@ -2,15 +2,88 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Backlog Todo List</title>
+    <title>Next Task</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
         darkMode: 'class',
       }
     </script>
+    <style>
+      @keyframes fadeInDown {
+        from {
+            opacity: 0;
+            transform: translate3d(0, -20px, 0);
+        }
+        to {
+            opacity: 1;
+            transform: translate3d(0, 0, 0);
+        }
+      }
+      .animate-fade-in-down {
+          animation: fadeInDown 0.3s ease-out forwards;
+      }
+      /* Basic Markdown styling */
+      .prose {
+        color: inherit;
+      }
+      .prose h1, .prose h2, .prose h3, .prose h4 {
+        font-weight: 600;
+        margin-top: 1.25em;
+        margin-bottom: 0.5em;
+      }
+      .prose h1 { font-size: 1.875rem; }
+      .prose h2 { font-size: 1.5rem; }
+      .prose h3 { font-size: 1.25rem; }
+      .prose h4 { font-size: 1.125rem; }
+      .prose p {
+        margin-top: 1em;
+        margin-bottom: 1em;
+      }
+      .prose ul, .prose ol {
+        margin-top: 1em;
+        margin-bottom: 1em;
+        padding-left: 1.75em;
+      }
+      .prose ul { list-style-type: disc; }
+      .prose ol { list-style-type: decimal; }
+      .prose li > p { margin: 0; }
+      .prose li { margin-top: 0.25em; margin-bottom: 0.25em; }
+      .prose a {
+        color: #4338ca; /* indigo-600 */
+        text-decoration: underline;
+      }
+      .dark .prose a {
+        color: #818cf8; /* indigo-400 */
+      }
+      .prose pre, .prose code {
+        font-family: monospace;
+        background-color: #f3f4f6; /* gray-100 */
+        border-radius: 0.25rem;
+        padding: 0.125em 0.25em;
+      }
+      .dark .prose pre, .dark .prose code {
+        background-color: #374151; /* gray-700 */
+      }
+      .prose pre {
+        padding: 0.75rem 1rem;
+        overflow-x: auto;
+      }
+      .prose blockquote {
+        margin-top: 1.5em;
+        margin-bottom: 1.5em;
+        padding-left: 1em;
+        border-left: 0.25em solid #e5e7eb; /* gray-200 */
+        font-style: italic;
+        color: #6b7280; /* gray-500 */
+      }
+      .dark .prose blockquote {
+        border-left-color: #4b5563; /* gray-600 */
+        color: #9ca3af; /* gray-400 */
+      }
+    </style>
     <script type="importmap">
 {
   "imports": {
@@ -19,7 +92,11 @@
     "react-dom/client": "https://esm.sh/react-dom@19.0.0-rc.0/client",
     "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
-    "react/": "https://aistudiocdn.com/react@^19.1.1/"
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "lucide-react": "https://esm.sh/lucide-react@0.408.0",
+    "lucide": "https://esm.sh/lucide@0.408.0",
+    "react-markdown": "https://esm.sh/react-markdown@9.0.1",
+    "remark-gfm": "https://esm.sh/remark-gfm@4.0.0"
   }
 }
 </script>
