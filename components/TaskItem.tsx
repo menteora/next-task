@@ -309,7 +309,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
            <ReactMarkdown remarkPlugins={[remarkGfm]}>{task.description}</ReactMarkdown>
          </div>
       )}
-
+      
        {isSnoozedInFuture && !task.completed && onUnsnoozeTask && (
         <div className="mt-3 p-2 bg-yellow-100 dark:bg-yellow-900/50 rounded-md flex items-center justify-between">
           <p className="text-sm text-yellow-800 dark:text-yellow-300 flex items-center">
