@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { Task } from '../types';
 import { TaskApi } from '../services/taskService';
 import { ConfirmationState } from './useUI';
+import { Session } from '@supabase/supabase-js';
 
 const formatDate = (date: Date): string => {
     const yyyy = date.getFullYear();
@@ -12,6 +13,7 @@ const formatDate = (date: Date): string => {
 
 export const useTasks = (
     api: TaskApi | null,
+    session: Session | null,
     requestConfirmation: (options: Omit<ConfirmationState, 'isOpen' | 'onConfirm'> & { onConfirm: () => void }) => void
 ) => {
     const [backlogTasks, setBacklogTasks] = useState<Task[]>([]);
@@ -76,10 +78,13 @@ export const useTasks = (
     }, [api, loadBacklogTasks, loadSnoozedTasks, loadArchivedTasks]);
 
     const handleAddTask = async (title: string, description: string) => {
-        if (!api) return;
+        if (!api || !session?.user.id) {
+            console.error("Cannot add task: API not ready or user not logged in.");
+            return;
+        }
         const maxOrder = backlogTasks.reduce((max, task) => Math.max(task.order, max), -1);
         try {
-            const newTask = await api.addTask(title, description, '', maxOrder + 1);
+            const newTask = await api.addTask(title, description, session.user.id, maxOrder + 1);
             setBacklogTasks(prev => [newTask, ...prev].sort((a,b) => a.order - b.order));
         } catch (error: any) { console.error(error.message); }
     };
