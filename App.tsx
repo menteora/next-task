@@ -22,6 +22,7 @@ const App: React.FC = () => {
   const {
     // FIX: Destructure 'isLoading' from useAppSync and alias it to 'isSyncLoading' to resolve the error, as 'isSyncLoading' does not exist on the return type.
     api, isOnlineMode, supabaseConfig, isLoading: isSyncLoading, isSessionLoading, statusMessage,
+    supabaseSession,
     setIsOnlineMode, handleSaveSupabaseConfig, handleMigrateToLocal, handleMigrateToOnline
   } = useAppSync(view, theme);
 
@@ -32,7 +33,7 @@ const App: React.FC = () => {
     handleSnoozeTask, handleUnsnoozeTask, handleSetSubtaskDueDate, handleUpdateSubtaskText,
     handleMoveTask, handleOpenSubtaskModal, handleCloseModal,
     onDragStart, onDragOver, onDrop
-  } = useTasks(api, requestConfirmation);
+  } = useTasks(api, supabaseSession, requestConfirmation);
 
   const {
     incompleteTodaySubtasks, completedTodaySubtasks, draggedTodayItem,
@@ -53,10 +54,12 @@ const App: React.FC = () => {
               return <BacklogPage 
                   backlogTasks={backlogTasks} draggedTask={draggedTask} allTags={allTags} selectedTags={selectedTags}
                   isCompactView={isCompactView} sortOption={sortOption} onAddTask={handleAddTask} onDeleteTask={requestDeleteTask}
+                  // FIX: Pass `handleUpdateTask` to the `onUpdateTask` prop. The variable `onUpdateTask` was not defined.
                   onUpdateTask={handleUpdateTask} onOpenSubtaskModal={handleOpenSubtaskModal} onDragStart={onDragStart}
                   onDragOver={onDragOver} onDrop={onDrop} onToggleTaskComplete={handleToggleTaskComplete} onMoveTask={handleMoveTask}
                   onSnoozeTask={handleSnoozeTask} onUnsnoozeTask={handleUnsnoozeTask} onTagClick={(tag) => setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])}
                   onClearTags={() => setSelectedTags([])} onSetSortOption={setSortOption} onSetCompactView={setCompactView}
+                  // FIX: Pass `handleUpdateSubtaskText` to the `onUpdateSubtaskText` prop. The variable `onUpdateSubtaskText` was not defined.
                   onUpdateSubtaskText={handleUpdateSubtaskText} onSetSubtaskDueDate={handleSetSubtaskDueDate}
                   loadTasks={loadBacklogTasks} isLoading={taskLoadingState.backlog}
               />;
@@ -69,6 +72,7 @@ const App: React.FC = () => {
                       const task = allTasks.find(t => t.id === taskId);
                       if(task) handleUpdateTask({ ...task, description: newDescription });
                   }} 
+                  // FIX: Pass `handleUpdateSubtaskText` to the `onUpdateSubtaskText` prop. The variable `onUpdateSubtaskText` was not defined.
                   onUpdateSubtaskText={handleUpdateSubtaskText}
                   loadTasks={loadAllTasks} isLoading={taskLoadingState.backlog || taskLoadingState.snoozed || taskLoadingState.archive}
               />;
@@ -83,6 +87,7 @@ const App: React.FC = () => {
               return <ArchivePage
                   archivedTasks={archivedTasks} allTags={allTags} onDeleteTask={requestDeleteTask} onUpdateTask={handleUpdateTask}
                   onOpenSubtaskModal={handleOpenSubtaskModal} onToggleTaskComplete={handleToggleTaskComplete}
+                  // FIX: Corrected prop name from `onUpdateSubtext` to `onUpdateSubtaskText` and passed the correct handler `handleUpdateSubtaskText`.
                   onUpdateSubtaskText={handleUpdateSubtaskText} onSetSubtaskDueDate={handleSetSubtaskDueDate}
                   loadTasks={loadArchivedTasks} isLoading={taskLoadingState.archive}
               />;
