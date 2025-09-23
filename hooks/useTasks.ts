@@ -92,41 +92,49 @@ export const useTasks = (
 
     const handleUpdateTask = useCallback(async (updatedTask: Task) => {
         if (!api) return;
+
+        const originalTask = allTasks.find(t => t.id === updatedTask.id);
+        if (!originalTask) return;
+
+        // Keep a snapshot of the state for potential rollback
+        const originalBacklogTasks = backlogTasks;
+        const originalSnoozedTasks = snoozedTasks;
+        const originalArchivedTasks = archivedTasks;
+
         const todayString = formatDate(new Date());
-        const findTask = allTasks.find(t => t.id === updatedTask.id);
-        
-        let sourceView: 'backlog' | 'snoozed' | 'archive' | null = null;
-        if (findTask) {
-            sourceView = findTask.completed ? 'archive' : (findTask.snoozeUntil && findTask.snoozeUntil > todayString) ? 'snoozed' : 'backlog';
-        }
+        const sourceView = originalTask.completed ? 'archive' : (originalTask.snoozeUntil && originalTask.snoozeUntil > todayString) ? 'snoozed' : 'backlog';
         const targetView = updatedTask.completed ? 'archive' : (updatedTask.snoozeUntil && updatedTask.snoozeUntil > todayString) ? 'snoozed' : 'backlog';
         
         // Optimistic update
         if (sourceView === targetView) {
-            if (targetView === 'backlog') setBacklogTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t).sort((a,b) => a.order - b.order));
-            if (targetView === 'snoozed') setSnoozedTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t).sort((a,b) => (a.snoozeUntil || '').localeCompare(b.snoozeUntil || '')));
-            if (targetView === 'archive') setArchivedTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t).sort((a,b) => (b.completionDate || '').localeCompare(a.completionDate || '')));
+            if (targetView === 'backlog') setBacklogTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+            if (targetView === 'snoozed') setSnoozedTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+            if (targetView === 'archive') setArchivedTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
         } else {
+            // Remove from source
             if (sourceView === 'backlog') setBacklogTasks(prev => prev.filter(t => t.id !== updatedTask.id));
             if (sourceView === 'snoozed') setSnoozedTasks(prev => prev.filter(t => t.id !== updatedTask.id));
             if (sourceView === 'archive') setArchivedTasks(prev => prev.filter(t => t.id !== updatedTask.id));
 
-            if (targetView === 'backlog') setBacklogTasks(prev => [...prev, updatedTask].sort((a,b) => a.order - b.order));
-            if (targetView === 'snoozed') setSnoozedTasks(prev => [...prev, updatedTask].sort((a,b) => (a.snoozeUntil || '').localeCompare(b.snoozeUntil || '')));
-            if (targetView === 'archive') setArchivedTasks(prev => [...prev, updatedTask].sort((a,b) => (b.completionDate || '').localeCompare(a.completionDate || '')));
+            // Add to target
+            if (targetView === 'backlog') setBacklogTasks(prev => [...prev, updatedTask]);
+            if (targetView === 'snoozed') setSnoozedTasks(prev => [...prev, updatedTask]);
+            if (targetView === 'archive') setArchivedTasks(prev => [...prev, updatedTask]);
         }
         
         if (modalTask?.id === updatedTask.id) setModalTask(updatedTask);
         
-        try { await api.updateTask(updatedTask); } 
+        try { 
+            await api.updateTask(updatedTask);
+        } 
         catch (error: any) {
-            console.error(`Failed to update task: ${error.message}.`);
-            // Revert state on failure by forcing a refetch
-            if (taskLoadedState.backlog) loadBacklogTasks(true);
-            if (taskLoadedState.snoozed) loadSnoozedTasks(true);
-            if (taskLoadedState.archive) loadArchivedTasks(true);
+            console.error(`Failed to update task: ${error.message}. Reverting optimistic update.`);
+            // Revert state on failure by restoring the snapshot
+            setBacklogTasks(originalBacklogTasks);
+            setSnoozedTasks(originalSnoozedTasks);
+            setArchivedTasks(originalArchivedTasks);
         }
-    }, [api, modalTask, allTasks, taskLoadedState, loadBacklogTasks, loadSnoozedTasks, loadArchivedTasks]);
+    }, [api, modalTask, allTasks, backlogTasks, snoozedTasks, archivedTasks]);
 
     const handleDeleteTask = useCallback(async (taskId: string) => {
         if (!api) return;
@@ -170,14 +178,14 @@ export const useTasks = (
     }, [allTasks, handleUpdateTask]);
 
     const handleSnoozeTask = useCallback((taskId: string, duration: 'day' | 'week' | 'month') => {
-        const task = backlogTasks.find(t => t.id === taskId && !t.completed);
+        const task = allTasks.find(t => t.id === taskId && !t.completed);
         if (!task) return;
         const newDate = new Date();
         if (duration === 'day') newDate.setDate(newDate.getDate() + 1);
         if (duration === 'week') newDate.setDate(newDate.getDate() + 7);
         if (duration === 'month') newDate.setMonth(newDate.getMonth() + 1);
         handleUpdateTask({ ...task, snoozeUntil: formatDate(newDate) });
-    }, [backlogTasks, handleUpdateTask]);
+    }, [allTasks, handleUpdateTask]);
 
     const handleUnsnoozeTask = useCallback((taskId: string) => {
         const task = allTasks.find(t => t.id === taskId);
