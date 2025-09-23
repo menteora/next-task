@@ -73,13 +73,17 @@ const StatsPage: React.FC<StatsPageProps> = ({ tasks, loadTasks, isLoading }) =>
     });
 
     const topTags = Object.entries(tagCounts)
-      .sort(([, a], [, b]) => b - a)
+      // FIX: Cast sort parameters to `number` to resolve arithmetic operation error.
+      // TypeScript can infer `unknown` for values from an object with an index signature.
+      .sort(([, a], [, b]) => (b as number) - (a as number))
       .slice(0, 5);
       
     return { completedTasks, pendingSubtasks, overdueSubtasks, weeklyCompletion, topTags };
   }, [tasks]);
 
-  const maxWeeklyCompletion = Math.max(...Object.values(stats.weeklyCompletion), 1);
+  // FIX: Cast `Object.values` result to `number[]` to resolve `Math.max` argument type error.
+  // TypeScript can infer `unknown[]` for values from an object with an index signature.
+  const maxWeeklyCompletion = Math.max(...(Object.values(stats.weeklyCompletion) as number[]), 1);
 
   if (isLoading) {
     return (

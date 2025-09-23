@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Task } from '../types';
-import { TrashIcon, ChevronDownIcon, GripVerticalIcon, EditIcon, CalendarPlusIcon, CalendarIcon, ChevronUpIcon, ChevronDoubleUpIcon, ChevronDoubleDownIcon, ClockIcon, SnoozeIcon, CheckIcon, CalendarClockIcon } from './icons';
+import { TrashIcon, ChevronDownIcon, GripVerticalIcon, EditIcon, CalendarPlusIcon, CalendarIcon, ChevronUpIcon, ChevronDoubleUpIcon, ChevronDoubleDownIcon, ClockIcon, SnoozeIcon, CheckIcon, CalendarClockIcon, CalendarX2Icon } from './icons';
 import MarkdownInput from './MarkdownInput';
 
 interface TaskItemProps {
@@ -110,6 +110,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
   const nextAction = task.subtasks.find(st => !st.completed);
   const allSubtasksCompleted = task.subtasks.length > 0 && task.subtasks.every(st => st.completed);
   const todayDateString = getTodayDateString();
+  const isNextActionOverdue = nextAction?.dueDate && nextAction.dueDate < todayDateString;
   const isNextActionScheduledForToday = nextAction?.dueDate === todayDateString;
   const isNextActionScheduledForFuture = nextAction?.dueDate && nextAction.dueDate > todayDateString;
   const isSnoozedInFuture = task.snoozeUntil && task.snoozeUntil > todayDateString;
@@ -356,29 +357,35 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDelete, onUpdate, onOpenSub
                 <button
                   onClick={() => !isNextActionScheduledForToday && nextAction && onSetSubtaskDueDate(nextAction.id, task.id, todayDateString)}
                   className={`p-2 rounded-full transition-colors flex-shrink-0 ${
-                    isNextActionScheduledForToday 
+                    isNextActionOverdue
+                      ? 'text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50'
+                      : isNextActionScheduledForToday 
                       ? 'text-green-500 cursor-default' 
                       : isNextActionScheduledForFuture
                       ? 'text-blue-500 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50'
                       : 'text-gray-500 dark:text-gray-400 hover:bg-yellow-100 dark:hover:bg-yellow-900/50 hover:text-yellow-600 dark:hover:text-yellow-400'
                   }`}
                   aria-label={
-                    isNextActionScheduledForToday
+                    isNextActionOverdue
+                      ? `Subtask '${nextAction.text}' is overdue. Reschedule for today.`
+                      : isNextActionScheduledForToday
                       ? `Subtask '${nextAction.text}' is scheduled for today`
                       : isNextActionScheduledForFuture
                       ? `Reschedule subtask '${nextAction.text}' for today`
                       : `Schedule subtask '${nextAction.text}' for today`
                   }
                   title={
-                    isNextActionScheduledForToday
-                      ? "Scheduled for Today"
+                    isNextActionOverdue
+                      ? "Scaduta! Clicca per spostare a Oggi."
+                      : isNextActionScheduledForToday
+                      ? "Pianificata per Oggi"
                       : isNextActionScheduledForFuture
-                      ? "Scheduled for a future date. Click to move to Today."
-                      : "Schedule for Today"
+                      ? "Pianificata per il futuro. Clicca per spostare a Oggi."
+                      : "Pianifica per Oggi"
                   }
                   disabled={isNextActionScheduledForToday || !nextAction}
                 >
-                  {isNextActionScheduledForToday ? <CalendarIcon /> : isNextActionScheduledForFuture ? <CalendarClockIcon /> : <CalendarPlusIcon />}
+                  {isNextActionOverdue ? <CalendarX2Icon className="h-6 w-6" /> : isNextActionScheduledForToday ? <CalendarIcon /> : isNextActionScheduledForFuture ? <CalendarClockIcon /> : <CalendarPlusIcon />}
                 </button>
                 {isEditingNextAction && nextAction ? (
                    <input
