@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+// FIX: Import `DragEvent` type from react to be used directly, resolving 'React' namespace errors.
+import { useState, useCallback, useEffect, useMemo, DragEvent } from 'react';
 import { Task } from '../types';
 import { TaskApi } from '../services/taskService';
 import { ConfirmationState } from './useUI';
@@ -216,9 +217,10 @@ export const useTasks = (
     const handleOpenSubtaskModal = useCallback((task: Task) => setModalTask(task), []);
     const handleCloseModal = useCallback(() => setModalTask(null), []);
     
-    const onDragStart = useCallback((e: React.DragEvent<HTMLDivElement>, task: Task) => setDraggedTask(task), []);
-    const onDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => e.preventDefault(), []);
-    const onDrop = useCallback((e: React.DragEvent<HTMLDivElement>, targetTask: Task) => {
+    // FIX: Use `DragEvent` type directly instead of `React.DragEvent` to match the import style and resolve namespace errors.
+    const onDragStart = useCallback((e: DragEvent<HTMLDivElement>, task: Task) => setDraggedTask(task), []);
+    const onDragOver = useCallback((e: DragEvent<HTMLDivElement>) => e.preventDefault(), []);
+    const onDrop = useCallback((e: DragEvent<HTMLDivElement>, targetTask: Task) => {
         e.preventDefault();
         if (!api || !draggedTask || draggedTask.completed || targetTask.completed) return;
         
